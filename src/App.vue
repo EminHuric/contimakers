@@ -1,1292 +1,1507 @@
 <template>
-  <div class="game-wrapper" :dir="isRTL ? 'rtl' : 'ltr'">
-    <div class="bg-grid" aria-hidden="true"></div>
-    <div class="compass-rose" aria-hidden="true">
-      <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <polygon points="60,4 66,54 60,58 54,54" fill="currentColor" opacity="0.6"/>
-        <polygon points="60,116 66,66 60,62 54,66" fill="currentColor" opacity="0.3"/>
-        <polygon points="4,60 54,54 58,60 54,66" fill="currentColor" opacity="0.3"/>
-        <polygon points="116,60 66,54 62,60 66,66" fill="currentColor" opacity="0.3"/>
-        <polygon points="60,4 66,54 60,58 54,54" fill="currentColor" opacity="0.6" transform="rotate(45,60,60)"/>
-        <polygon points="60,116 66,66 60,62 54,66" fill="currentColor" opacity="0.3" transform="rotate(45,60,60)"/>
-        <polygon points="4,60 54,54 58,60 54,66" fill="currentColor" opacity="0.3" transform="rotate(45,60,60)"/>
-        <polygon points="116,60 66,54 62,60 66,66" fill="currentColor" opacity="0.3" transform="rotate(45,60,60)"/>
-        <circle cx="60" cy="60" r="7" fill="currentColor" opacity="0.5"/>
-        <circle cx="60" cy="60" r="3" fill="currentColor"/>
-      </svg>
-    </div>
+  <div id="app-wrapper">
+    <!-- Background decorations -->
+    <div class="bg-blob blob-1"></div>
+    <div class="bg-blob blob-2"></div>
+    <div class="grid-overlay"></div>
 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!--  PHASE: WELCOME                                  -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <Transition name="screen">
-      <div v-if="phase === 'welcome'" class="welcome-screen" key="welcome">
-        <div class="welcome-card">
-          <div class="title-rule"><span></span><span class="rule-diamond">◆</span><span></span></div>
-          <h1 class="game-title">ContiMakers</h1>
-          <p class="welcome-tagline">{{ t.welcomeSubtitle }}</p>
-          <div class="title-rule"><span></span><span class="rule-diamond">◆</span><span></span></div>
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-area">
+        <span class="logo-icon">🌍</span>
+        <span class="logo-text">GeoQuest</span>
+      </div>
+      <div class="lang-selector-wrap">
+        <span class="lang-label">{{ t('language') }}:</span>
+        <div class="lang-scroll-container">
+          <div class="lang-scroll-inner">
+            <button
+              v-for="lang in languages"
+              :key="lang.code"
+              class="lang-btn"
+              :class="{ active: currentLang === lang.code }"
+              @click="changeLang(lang.code)"
+            >
+              <span class="lang-flag">{{ lang.flag }}</span>
+              <span class="lang-name">{{ lang.name }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
 
-          <div class="country-selector-block">
-            <p class="selector-label">{{ t.chooseCountry }}</p>
-            <div class="country-grid">
-              <button
-                v-for="country in COUNTRIES"
-                :key="country.name"
-                class="country-btn"
-                :class="{ selected: selectedCountry?.name === country.name }"
-                @click="selectCountry(country)"
-              >
-                <span class="country-flag">{{ country.flag }}</span>
-                <span class="country-label">{{ country.name }}</span>
-              </button>
+    <!-- Main content -->
+    <main class="app-main">
+
+      <!-- SELECTION PHASE -->
+      <Transition name="phase">
+        <div v-if="phase === 'selection'" class="phase-screen" key="selection">
+          <div class="title-block">
+            <p class="subtitle">{{ t('selectContinent') }}</p>
+            <h1 class="main-title">{{ t('chooseCard') }}</h1>
+          </div>
+
+          <div class="card-grid">
+            <div
+              v-for="(card, idx) in cardDeck"
+              :key="card.continent"
+              class="card-wrapper"
+              :class="{ locked: anyRevealed && !card.revealed }"
+              @click="revealCard(card)"
+            >
+              <div class="card-inner" :class="{ flipped: card.revealed }">
+                <!-- Card Back -->
+                <div class="card-face card-back">
+                  <div class="card-shimmer"></div>
+                  <div class="card-back-number">{{ ['I','II','III','IV','V','VI'][idx] }}</div>
+                  <div class="card-back-pattern">
+                    <svg viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <rect x="30" y="10" width="20" height="20" stroke="currentColor" stroke-width="1" transform="rotate(45 40 20)"/>
+                      <circle cx="40" cy="40" r="15" stroke="currentColor" stroke-width="0.8"/>
+                      <line x1="40" y1="5" x2="40" y2="75" stroke="currentColor" stroke-width="0.5"/>
+                      <line x1="5" y1="40" x2="75" y2="40" stroke="currentColor" stroke-width="0.5"/>
+                      <circle cx="40" cy="40" r="3" fill="currentColor"/>
+                    </svg>
+                  </div>
+                  <p class="card-back-hint">{{ t('tapToReveal') }}</p>
+                </div>
+
+                <!-- Card Front -->
+                <div class="card-face card-front" :style="continentStyle(card.continent)">
+                  <div class="card-front-emoji">{{ continentEmoji(card.continent) }}</div>
+                  <div class="card-front-name">{{ translateContinent(card.continent) }}</div>
+                  <div class="card-front-divider"></div>
+                  <div class="card-front-info">{{ t('questionsAwait') }}</div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <button class="start-btn" @click="startGame">
-            {{ t.startBtn }}
-          </button>
+          <p class="instructions-text">{{ t('instructions') }}</p>
         </div>
-      </div>
-    </Transition>
+      </Transition>
 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!--  PHASE: SELECTION                               -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <Transition name="screen">
-      <div v-if="phase === 'selection'" class="selection-screen" key="selection">
+      <!-- QUIZ PHASE -->
+      <Transition name="phase">
+        <div v-if="phase === 'quiz'" class="phase-screen" key="quiz">
+          <div class="quiz-container">
 
-        <div class="game-title-block">
-          <div class="title-rule"><span></span><span class="rule-diamond">◆</span><span></span></div>
-          <h1 class="game-title">ContiMakers</h1>
-          <p class="game-subtitle">{{ t.selectionSubtitle }}</p>
-          <div class="title-rule"><span></span><span class="rule-diamond">◆</span><span></span></div>
-        </div>
+            <!-- Quiz header -->
+            <div class="quiz-header" :style="continentStyle(activeContinent)">
+              <div class="quiz-continent-info">
+                <span class="quiz-emoji">{{ continentEmoji(activeContinent) }}</span>
+                <span class="quiz-continent-name">{{ translateContinent(activeContinent) }}</span>
+              </div>
+              <div class="quiz-progress-text">
+                {{ t('question') }} {{ currentIndex + 1 }} / {{ roundQuestions.length }}
+              </div>
+            </div>
 
-        <div class="cards-grid">
-          <div
-            v-for="(card, i) in cardDeck"
-            :key="card.continent"
-            class="mystery-card"
-            :class="{ flipped: card.revealed, locked: anyRevealed && !card.revealed }"
-            @click="revealCard(card)"
-          >
-            <div class="card-inner">
+            <!-- Progress bar -->
+            <div class="progress-bar-track">
+              <div class="progress-bar-fill" :style="{ width: ((currentIndex) / roundQuestions.length * 100) + '%' }"></div>
+            </div>
 
-              <!-- BACK FACE -->
-              <div class="card-back" :style="cardBackStyle(i)">
-                <div class="cb-frame">
-                  <div class="cb-corner cb-corner--tl"></div>
-                  <div class="cb-corner cb-corner--tr"></div>
-                  <div class="cb-corner cb-corner--bl"></div>
-                  <div class="cb-corner cb-corner--br"></div>
-                  <div class="cb-center">
-                    <svg class="cb-pattern" viewBox="0 0 80 80">
-                      <polygon points="40,6 74,40 40,74 6,40" stroke="currentColor" stroke-width="1.2" fill="none" opacity="0.5"/>
-                      <polygon points="40,18 62,40 40,62 18,40" stroke="currentColor" stroke-width="1" fill="none" opacity="0.4"/>
-                      <line x1="40" y1="6" x2="40" y2="74" stroke="currentColor" stroke-width="0.6" opacity="0.2"/>
-                      <line x1="6" y1="40" x2="74" y2="40" stroke="currentColor" stroke-width="0.6" opacity="0.2"/>
-                      <circle cx="40" cy="6"  r="2" fill="currentColor" opacity="0.6"/>
-                      <circle cx="74" cy="40" r="2" fill="currentColor" opacity="0.6"/>
-                      <circle cx="40" cy="74" r="2" fill="currentColor" opacity="0.6"/>
-                      <circle cx="6"  cy="40" r="2" fill="currentColor" opacity="0.6"/>
-                      <circle cx="40" cy="40" r="10" stroke="currentColor" stroke-width="1" fill="none" opacity="0.5"/>
-                      <circle cx="40" cy="40" r="3"  fill="currentColor" opacity="0.7"/>
-                    </svg>
-                    <div class="cb-roman">{{ ROMAN[i] }}</div>
+            <!-- Question -->
+            <div class="quiz-body">
+              <Transition name="q-slide" mode="out-in">
+                <div :key="currentIndex" class="question-section">
+                  <p class="question-text">{{ translatedQuestion }}</p>
+
+                  <!-- Answer grid -->
+                  <div class="answers-grid">
+                    <button
+                      v-for="(option, i) in displayedOptions"
+                      :key="option"
+                      class="answer-btn"
+                      :class="answerClass(option)"
+                      :disabled="answered"
+                      @click="selectAnswer(option)"
+                    >
+                      <span class="answer-letter">{{ ['A','B','C','D'][i] }}</span>
+                      <span class="answer-text">{{ option }}</span>
+                    </button>
                   </div>
                 </div>
-                <div class="cb-shimmer"></div>
-              </div>
+              </Transition>
 
-              <!-- FRONT FACE -->
-              <div class="card-front" :style="continentStyle(card.continent)">
-                <div class="cf-glow"></div>
-                <div class="cf-icon">{{ ICONS[card.continent] }}</div>
-                <div class="cf-name">{{ t.continents[card.continent] }}</div>
-                <div class="cf-divider"></div>
-                <div class="cf-sub">{{ t.questionsAwait }}</div>
-              </div>
+              <!-- Feedback bar -->
+              <Transition name="feedback">
+                <div v-if="answered" class="feedback-bar" :class="isCorrect ? 'feedback-correct' : 'feedback-wrong'">
+                  <div class="feedback-left">
+                    <span class="feedback-icon">{{ isCorrect ? '✓' : '✗' }}</span>
+                    <span class="feedback-msg">
+                      {{ isCorrect ? t('correct') : t('wrongAnswer') + ' ' + translatedCorrect }}
+                    </span>
+                  </div>
+                  <button class="next-btn" @click="nextQuestion">
+                    {{ currentIndex < roundQuestions.length - 1 ? t('next') : t('seeResults') }}
+                    <span class="next-arrow">→</span>
+                  </button>
+                </div>
+              </Transition>
+            </div>
 
+            <!-- Pips -->
+            <div class="quiz-pips">
+              <div
+                v-for="(pip, i) in pipResults"
+                :key="i"
+                class="pip"
+                :class="{
+                  'pip-active': i === currentIndex,
+                  'pip-correct': pip === true,
+                  'pip-wrong': pip === false
+                }"
+              ></div>
             </div>
           </div>
         </div>
-      </div>
-    </Transition>
+      </Transition>
 
-    <!-- ═══════════════════════════════════════════════ -->
-    <!--  PHASE: QUIZ                                    -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <Transition name="screen">
-      <div v-if="phase === 'quiz'" class="quiz-container" key="quiz">
-
-        <main class="game-card" :class="{ 'card-exit': isTransitioning }">
-
-          <header class="card-header">
-            <div class="continent-tag">
-              <span class="continent-icon">{{ ICONS[activeContinent] }}</span>
-              <span class="continent-name">{{ t.continents[activeContinent] }}</span>
+      <!-- RESULT PHASE -->
+      <Transition name="phase">
+        <div v-if="phase === 'result'" class="phase-screen" key="result">
+          <div class="result-card">
+            <div class="result-banner" :style="continentStyle(activeContinent)">
+              <span class="result-emoji">{{ continentEmoji(activeContinent) }}</span>
+              <span class="result-continent">{{ translateContinent(activeContinent) }}</span>
             </div>
-            <div class="progress-info">
-              <span class="progress-label">{{ t.questionLabel }}</span>
-              <span class="progress-count">{{ currentIndex + 1 }}<span class="progress-total"> / 4</span></span>
-            </div>
-          </header>
 
-          <section class="question-section">
-            <p class="question-text">{{ currentQ?.question }}</p>
-          </section>
+            <div class="result-body">
+              <p class="result-label">{{ t('roundComplete') }}</p>
+              <div class="stars-row">
+                <span
+                  v-for="n in 4"
+                  :key="n"
+                  class="star"
+                  :class="{ lit: n <= score }"
+                >★</span>
+              </div>
+              <div class="score-display">
+                <span class="score-number">{{ score }}</span>
+                <span class="score-slash">/</span>
+                <span class="score-total">{{ roundQuestions.length }}</span>
+              </div>
+              <p class="score-comment">{{ scoreComment }}</p>
 
-          <section class="answers-section">
-            <button
-              v-for="(option, idx) in displayedOptions"
-              :key="option + idx"
-              class="answer-btn"
-              :class="answerClass(option)"
-              :disabled="answered"
-              @click="selectAnswer(option)"
-            >
-              <span class="answer-letter">{{ LETTERS[idx] }}</span>
-              <span class="answer-text">{{ option }}</span>
-            </button>
-          </section>
+              <div class="pip-results-row">
+                <div
+                  v-for="(pip, i) in pipResults"
+                  :key="i"
+                  class="result-pip"
+                  :class="pip ? 'result-pip-correct' : 'result-pip-wrong'"
+                >
+                  {{ pip ? '✓' : '✗' }}
+                </div>
+              </div>
 
-          <Transition name="feedback">
-            <div
-              v-if="answered"
-              class="feedback-bar"
-              :class="isCorrect ? 'feedback-correct' : 'feedback-wrong'"
-            >
-              <span class="feedback-icon">{{ isCorrect ? '✓' : '✗' }}</span>
-              <span class="feedback-msg">
-                {{ isCorrect ? t.correctFeedback : `${t.answerPrefix} ${currentQ?.correct}` }}
-              </span>
-              <button class="next-btn" @click="nextQuestion">
-                {{ currentIndex < 3 ? t.nextBtn : t.resultsBtn }}
+              <button class="return-btn" @click="returnToMap">
+                ◂ {{ t('returnToMap') }}
               </button>
             </div>
-          </Transition>
-
-        </main>
-
-        <!-- 4-pip track -->
-        <div class="quiz-pips">
-          <div
-            v-for="n in 4"
-            :key="n"
-            class="pip"
-            :class="{
-              done:    n <= currentIndex,
-              active:  n === currentIndex + 1,
-              correct: answered && n === currentIndex + 1 && pipResults[n-1] === true,
-              wrong:   answered && n === currentIndex + 1 && pipResults[n-1] === false,
-              'past-correct': n <= currentIndex && pipResults[n-1] === true,
-              'past-wrong':   n <= currentIndex && pipResults[n-1] === false,
-            }"
-          ></div>
-        </div>
-
-      </div>
-    </Transition>
-
-    <!-- ═══════════════════════════════════════════════ -->
-    <!--  PHASE: RESULT                                  -->
-    <!-- ═══════════════════════════════════════════════ -->
-    <Transition name="screen">
-      <div v-if="phase === 'result'" class="result-screen" key="result">
-        <div class="result-card">
-
-          <div class="result-continent-banner" :style="continentStyle(activeContinent)">
-            <span class="result-icon">{{ ICONS[activeContinent] }}</span>
-            <span class="result-continent">{{ t.continents[activeContinent] }}</span>
           </div>
-
-          <div class="result-body">
-            <p class="result-headline">{{ t.roundComplete }}</p>
-
-            <div class="result-stars">
-              <span v-for="n in 4" :key="n" class="star" :class="{ lit: n <= score }">★</span>
-            </div>
-
-            <p class="result-score">{{ score }} / 4 {{ t.correctLabel }}</p>
-            <p class="result-comment">{{ scoreComment }}</p>
-
-            <div class="result-pip-row">
-              <div
-                v-for="(res, i) in pipResults"
-                :key="i"
-                class="result-pip"
-                :class="res === true ? 'correct' : 'wrong'"
-              >{{ res === true ? '✓' : '✗' }}</div>
-            </div>
-
-            <button class="return-btn" @click="returnToMap">{{ t.returnBtn }}</button>
-          </div>
-
         </div>
-      </div>
-    </Transition>
+      </Transition>
 
+    </main>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from "vue";
-import { questions } from "./data/questions.js";
+import { ref, computed, onMounted, watch } from 'vue'
+import { questions } from './data/questions.js'
 
-// ── Constants ─────────────────────────────────────────────────
-const CONTINENTS = ["Europe", "Asia", "Africa", "North America", "South America", "Australia"];
-const ROMAN      = ["I", "II", "III", "IV", "V", "VI"];
-const LETTERS    = ["A", "B", "C", "D"];
+// ─── LANGUAGES ───────────────────────────────────────────────
+const languages = [
+  { code: 'sr', name: 'Srpski', flag: '🇷🇸' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'pt', name: 'Português', flag: '🇵🇹' },
+  { code: 'ru', name: 'Русский', flag: '🇷🇺' },
+  { code: 'zh', name: '中文', flag: '🇨🇳' },
+  { code: 'ja', name: '日本語', flag: '🇯🇵' },
+  { code: 'ar', name: 'العربية', flag: '🇸🇦' },
+  { code: 'tr', name: 'Türkçe', flag: '🇹🇷' },
+]
 
-const ICONS = {
-  "Europe":        "🏰",
-  "Asia":          "🏯",
-  "Africa":        "🌍",
-  "North America": "🗽",
-  "South America": "🌎",
-  "Australia":     "🦘",
-};
+const currentLang = ref('sr')
 
-// Continent front-face gradient colours (unchanged)
-const CONTINENT_COLORS = {
-  "Europe":        { from: "#1a2e6e", to: "#2a4fa8", accent: "#7ba3e8" },
-  "Asia":          { from: "#6e1a1a", to: "#a82a2a", accent: "#e87b7b" },
-  "Africa":        { from: "#6e3d00", to: "#a85e00", accent: "#e8b060" },
-  "North America": { from: "#1a4e2e", to: "#2a7a48", accent: "#7be8a8" },
-  "South America": { from: "#0a3e5a", to: "#1a6a8a", accent: "#60c8e8" },
-  "Australia":     { from: "#5a2a0a", to: "#8a4a1a", accent: "#e8a060" },
-};
-
-// Six distinct colours for the mystery card BACKS (one per position)
-const CARD_BACK_COLORS = [
-  { from: "#1e3a7a", to: "#2d5db8", accent: "#90b8f0" }, // Royal Blue
-  { from: "#6e1e3a", to: "#a82d5e", accent: "#f0a0c0" }, // Crimson Rose
-  { from: "#1e5a30", to: "#2d8a48", accent: "#80e0a0" }, // Forest Green
-  { from: "#5a3e0a", to: "#8a6020", accent: "#f0c868" }, // Amber
-  { from: "#0a4a5e", to: "#1e7a8a", accent: "#70d0e8" }, // Deep Teal
-  { from: "#4a1e6e", to: "#7a2da8", accent: "#d090f0" }, // Violet
-];
-
-// Countries → language mapping (ordered: Serbian first / default)
-const COUNTRIES = [
-  // Serbian
-  { name: "Srbija",              lang: "sr", flag: "🇷🇸" },
-  { name: "Crna Gora",           lang: "sr", flag: "🇲🇪" },
-  // English
-  { name: "United Kingdom",      lang: "en", flag: "🇬🇧" },
-  { name: "United States",       lang: "en", flag: "🇺🇸" },
-  { name: "Australia",           lang: "en", flag: "🇦🇺" },
-  { name: "Canada",              lang: "en", flag: "🇨🇦" },
-  { name: "Ireland",             lang: "en", flag: "🇮🇪" },
-  { name: "New Zealand",         lang: "en", flag: "🇳🇿" },
-  { name: "South Africa",        lang: "en", flag: "🇿🇦" },
-  // German
-  { name: "Deutschland",         lang: "de", flag: "🇩🇪" },
-  { name: "Österreich",          lang: "de", flag: "🇦🇹" },
-  { name: "Schweiz",             lang: "de", flag: "🇨🇭" },
-  // Bosnian
-  { name: "Bosna i Hercegovina", lang: "bs", flag: "🇧🇦" },
-  // Croatian
-  { name: "Hrvatska",            lang: "hr", flag: "🇭🇷" },
-  // French
-  { name: "France",              lang: "fr", flag: "🇫🇷" },
-  { name: "Belgique",            lang: "fr", flag: "🇧🇪" },
-  { name: "Suisse (FR)",         lang: "fr", flag: "🇨🇭" },
-  // Spanish
-  { name: "España",              lang: "es", flag: "🇪🇸" },
-  { name: "México",              lang: "es", flag: "🇲🇽" },
-  { name: "Argentina",           lang: "es", flag: "🇦🇷" },
-  { name: "Colombia",            lang: "es", flag: "🇨🇴" },
-  { name: "Chile",               lang: "es", flag: "🇨🇱" },
-  { name: "Perú",                lang: "es", flag: "🇵🇪" },
-  { name: "Venezuela",           lang: "es", flag: "🇻🇪" },
-  // Portuguese
-  { name: "Portugal",            lang: "pt", flag: "🇵🇹" },
-  { name: "Brasil",              lang: "pt", flag: "🇧🇷" },
-  // Arabic
-  { name: "السعودية",           lang: "ar", flag: "🇸🇦" },
-  { name: "مصر",                lang: "ar", flag: "🇪🇬" },
-  { name: "المغرب",             lang: "ar", flag: "🇲🇦" },
-  { name: "الإمارات",           lang: "ar", flag: "🇦🇪" },
-  { name: "الأردن",             lang: "ar", flag: "🇯🇴" },
-  { name: "تونس",               lang: "ar", flag: "🇹🇳" },
-  // Macedonian
-  { name: "Северна Македонија",  lang: "mk", flag: "🇲🇰" },
-  // Russian
-  { name: "Россия",              lang: "ru", flag: "🇷🇺" },
-  { name: "Беларусь",            lang: "ru", flag: "🇧🇾" },
-  { name: "Казахстан",           lang: "ru", flag: "🇰🇿" },
-];
-
-// ── Translations ──────────────────────────────────────────────
-// scoreComments[0]=4/4, [1]=3/4, [2]=2/4, [3]=1/4, [4]=0/4
-const TRANSLATIONS = {
+// ─── UI TRANSLATIONS ─────────────────────────────────────────
+const uiStrings = {
   sr: {
-    welcomeSubtitle:   "Geografski kviz za znatiželjne umove",
-    chooseCountry:     "Odakle ste?",
-    startBtn:          "Počni",
-    selectionSubtitle: "Šest teritorija skriveno iza karata. Izaberite jednu da otkrijete odredište.",
-    questionsAwait:    "4 pitanja čekaju",
-    questionLabel:     "Pitanje",
-    correctFeedback:   "Tačno!",
-    answerPrefix:      "Odgovor:",
-    nextBtn:           "Sledeće →",
-    resultsBtn:        "Vidi rezultate →",
-    roundComplete:     "Runda završena",
-    correctLabel:      "tačno",
-    returnBtn:         "◂ Povratak na kartu",
-    scoreComments: [
-      "Savršen rezultat — svet nema tajni od tebe!",
-      "Odlično — iskusan istraživač!",
-      "Nije loše — nastavi da putuje i učiš.",
-      "Mali početak — svako putovanje počinje ovde.",
-      "Nema veze — svet nagrađuje radoznale.",
-    ],
+    language: 'Jezik',
+    selectContinent: 'Odaberi kontinent',
+    chooseCard: 'Odaberi kartu i počni kviz!',
+    tapToReveal: 'Klikni da otkriješ',
+    questionsAwait: '4 pitanja te čekaju',
+    instructions: 'Klikni na jednu od 6 karata da počneš',
+    question: 'Pitanje',
+    correct: 'Tačno! Bravo!',
+    wrongAnswer: 'Tačan odgovor:',
+    next: 'Sledeće',
+    seeResults: 'Pogledaj rezultate',
+    roundComplete: 'Runda završena!',
+    returnToMap: 'Vrati se na mapu',
+    score0: 'Pokušaj ponovo! Možeš bolje. 💪',
+    score1: 'Dobar početak! Uči dalje. 📚',
+    score2: 'Solidno! Polako napreduje. 🌍',
+    score3: 'Odlično! Gotovo savršeno! 🎯',
+    score4: 'Savršeno! Geografski genije! 🏆',
     continents: {
-      "Europe": "Evropa", "Asia": "Azija", "Africa": "Afrika",
-      "North America": "Severna Amerika", "South America": "Južna Amerika", "Australia": "Australija",
-    },
+      'Europa': 'Evropa',
+      'Azija': 'Azija',
+      'Afrika': 'Afrika',
+      'Severna Amerika': 'Severna Amerika',
+      'Južna Amerika': 'Južna Amerika',
+      'Australija': 'Australija',
+    }
   },
-
   en: {
-    welcomeSubtitle:   "A geography quiz for curious minds",
-    chooseCountry:     "Where are you from?",
-    startBtn:          "Start",
-    selectionSubtitle: "Six territories lie hidden beyond these cards. Choose one to reveal your destination.",
-    questionsAwait:    "4 questions await",
-    questionLabel:     "Question",
-    correctFeedback:   "Correct!",
-    answerPrefix:      "Answer:",
-    nextBtn:           "Next →",
-    resultsBtn:        "See Results →",
-    roundComplete:     "Round Complete",
-    correctLabel:      "correct",
-    returnBtn:         "◂ Return to Map",
-    scoreComments: [
-      "Perfect score — the world holds no secrets from you!",
-      "Excellent — a seasoned explorer!",
-      "Not bad — keep wandering and learning.",
-      "A small start — every great journey begins here.",
-      "No worries — the world rewards the curious.",
-    ],
+    language: 'Language',
+    selectContinent: 'Select a continent',
+    chooseCard: 'Pick a card and start the quiz!',
+    tapToReveal: 'Click to reveal',
+    questionsAwait: '4 questions await',
+    instructions: 'Click one of the 6 cards to begin',
+    question: 'Question',
+    correct: 'Correct! Well done!',
+    wrongAnswer: 'Correct answer:',
+    next: 'Next',
+    seeResults: 'See Results',
+    roundComplete: 'Round Complete!',
+    returnToMap: 'Return to Map',
+    score0: 'Try again! You can do better. 💪',
+    score1: 'Good start! Keep studying. 📚',
+    score2: 'Solid! You\'re improving. 🌍',
+    score3: 'Excellent! Almost perfect! 🎯',
+    score4: 'Perfect! Geography genius! 🏆',
     continents: {
-      "Europe": "Europe", "Asia": "Asia", "Africa": "Africa",
-      "North America": "North America", "South America": "South America", "Australia": "Australia",
-    },
+      'Europa': 'Europe',
+      'Azija': 'Asia',
+      'Afrika': 'Africa',
+      'Severna Amerika': 'North America',
+      'Južna Amerika': 'South America',
+      'Australija': 'Australia',
+    }
   },
-
   de: {
-    welcomeSubtitle:   "Ein Geografie-Quiz für wissbegierige Köpfe",
-    chooseCountry:     "Woher kommen Sie?",
-    startBtn:          "Starten",
-    selectionSubtitle: "Sechs Gebiete verbergen sich hinter diesen Karten. Wählen Sie eine, um Ihr Ziel zu enthüllen.",
-    questionsAwait:    "4 Fragen warten",
-    questionLabel:     "Frage",
-    correctFeedback:   "Richtig!",
-    answerPrefix:      "Antwort:",
-    nextBtn:           "Weiter →",
-    resultsBtn:        "Ergebnisse →",
-    roundComplete:     "Runde abgeschlossen",
-    correctLabel:      "richtig",
-    returnBtn:         "◂ Zurück zur Karte",
-    scoreComments: [
-      "Perfektes Ergebnis — die Welt hat keine Geheimnisse vor dir!",
-      "Ausgezeichnet — ein erfahrener Entdecker!",
-      "Nicht schlecht — weiterwandern und lernen.",
-      "Ein kleiner Anfang — jede große Reise beginnt hier.",
-      "Kein Problem — die Welt belohnt Neugierige.",
-    ],
+    language: 'Sprache',
+    selectContinent: 'Kontinent auswählen',
+    chooseCard: 'Wähle eine Karte und starte das Quiz!',
+    tapToReveal: 'Klicken zum Aufdecken',
+    questionsAwait: '4 Fragen warten',
+    instructions: 'Klicke eine der 6 Karten um zu beginnen',
+    question: 'Frage',
+    correct: 'Richtig! Gut gemacht!',
+    wrongAnswer: 'Richtige Antwort:',
+    next: 'Weiter',
+    seeResults: 'Ergebnisse sehen',
+    roundComplete: 'Runde abgeschlossen!',
+    returnToMap: 'Zurück zur Karte',
+    score0: 'Versuch es nochmal! 💪',
+    score1: 'Guter Start! Weitermachen. 📚',
+    score2: 'Solide! Du verbesserst dich. 🌍',
+    score3: 'Ausgezeichnet! Fast perfekt! 🎯',
+    score4: 'Perfekt! Geographie-Genie! 🏆',
     continents: {
-      "Europe": "Europa", "Asia": "Asien", "Africa": "Afrika",
-      "North America": "Nordamerika", "South America": "Südamerika", "Australia": "Australien",
-    },
+      'Europa': 'Europa',
+      'Azija': 'Asien',
+      'Afrika': 'Afrika',
+      'Severna Amerika': 'Nordamerika',
+      'Južna Amerika': 'Südamerika',
+      'Australija': 'Australien',
+    }
   },
-
-  bs: {
-    welcomeSubtitle:   "Geografski kviz za znatiželjna srca",
-    chooseCountry:     "Odakle ste?",
-    startBtn:          "Počni",
-    selectionSubtitle: "Šest teritorija skriveno iza karata. Odaberite jednu da otkrijete odredište.",
-    questionsAwait:    "4 pitanja čekaju",
-    questionLabel:     "Pitanje",
-    correctFeedback:   "Tačno!",
-    answerPrefix:      "Odgovor:",
-    nextBtn:           "Sljedeće →",
-    resultsBtn:        "Pogledaj rezultate →",
-    roundComplete:     "Runda završena",
-    correctLabel:      "tačno",
-    returnBtn:         "◂ Povratak na kartu",
-    scoreComments: [
-      "Savršen rezultat — svijet nema tajni od tebe!",
-      "Izvrsno — iskusan istraživač!",
-      "Nije loše — nastavi putovati i učiti.",
-      "Mali početak — svako putovanje počinje ovdje.",
-      "Nema veze — svijet nagrađuje radoznale.",
-    ],
-    continents: {
-      "Europe": "Evropa", "Asia": "Azija", "Africa": "Afrika",
-      "North America": "Sjeverna Amerika", "South America": "Južna Amerika", "Australia": "Australija",
-    },
-  },
-
-  hr: {
-    welcomeSubtitle:   "Geografski kviz za znatiželjna srca",
-    chooseCountry:     "Odakle ste?",
-    startBtn:          "Počni",
-    selectionSubtitle: "Šest teritorija skriveno iza karata. Odaberite jednu da otkrijete odredište.",
-    questionsAwait:    "4 pitanja čekaju",
-    questionLabel:     "Pitanje",
-    correctFeedback:   "Točno!",
-    answerPrefix:      "Odgovor:",
-    nextBtn:           "Sljedeće →",
-    resultsBtn:        "Pogledaj rezultate →",
-    roundComplete:     "Runda završena",
-    correctLabel:      "točno",
-    returnBtn:         "◂ Povratak na kartu",
-    scoreComments: [
-      "Savršen rezultat — svijet nema tajni od tebe!",
-      "Izvrsno — iskusan istraživač!",
-      "Nije loše — nastavi putovati i učiti.",
-      "Mali početak — svako putovanje počinje ovdje.",
-      "Nema veze — svijet nagrađuje radoznale.",
-    ],
-    continents: {
-      "Europe": "Europa", "Asia": "Azija", "Africa": "Afrika",
-      "North America": "Sjeverna Amerika", "South America": "Južna Amerika", "Australia": "Australija",
-    },
-  },
-
   fr: {
-    welcomeSubtitle:   "Un quiz de géographie pour les esprits curieux",
-    chooseCountry:     "D'où venez-vous ?",
-    startBtn:          "Commencer",
-    selectionSubtitle: "Six territoires se cachent derrière ces cartes. Choisissez-en un pour révéler votre destination.",
-    questionsAwait:    "4 questions vous attendent",
-    questionLabel:     "Question",
-    correctFeedback:   "Correct !",
-    answerPrefix:      "Réponse :",
-    nextBtn:           "Suivant →",
-    resultsBtn:        "Voir les résultats →",
-    roundComplete:     "Tour terminé",
-    correctLabel:      "correct",
-    returnBtn:         "◂ Retour à la carte",
-    scoreComments: [
-      "Score parfait — le monde n'a aucun secret pour vous !",
-      "Excellent — un explorateur chevronné !",
-      "Pas mal — continuez à voyager et apprendre.",
-      "Un petit début — tout grand voyage commence ici.",
-      "Pas d'inquiétude — le monde récompense les curieux.",
-    ],
+    language: 'Langue',
+    selectContinent: 'Sélectionner un continent',
+    chooseCard: 'Choisissez une carte et commencez !',
+    tapToReveal: 'Cliquez pour révéler',
+    questionsAwait: '4 questions vous attendent',
+    instructions: 'Cliquez sur l\'une des 6 cartes pour commencer',
+    question: 'Question',
+    correct: 'Correct ! Bravo !',
+    wrongAnswer: 'Bonne réponse :',
+    next: 'Suivant',
+    seeResults: 'Voir les résultats',
+    roundComplete: 'Tour terminé !',
+    returnToMap: 'Retour à la carte',
+    score0: 'Essayez encore ! 💪',
+    score1: 'Bon début ! Continuez. 📚',
+    score2: 'Solide ! Vous progressez. 🌍',
+    score3: 'Excellent ! Presque parfait ! 🎯',
+    score4: 'Parfait ! Génie géographique ! 🏆',
     continents: {
-      "Europe": "Europe", "Asia": "Asie", "Africa": "Afrique",
-      "North America": "Amérique du Nord", "South America": "Amérique du Sud", "Australia": "Australie",
-    },
+      'Europa': 'Europe',
+      'Azija': 'Asie',
+      'Afrika': 'Afrique',
+      'Severna Amerika': 'Amérique du Nord',
+      'Južna Amerika': 'Amérique du Sud',
+      'Australija': 'Australie',
+    }
   },
-
   es: {
-    welcomeSubtitle:   "Un quiz de geografía para mentes curiosas",
-    chooseCountry:     "¿De dónde eres?",
-    startBtn:          "Comenzar",
-    selectionSubtitle: "Seis territorios se esconden detrás de estas cartas. Elige una para revelar tu destino.",
-    questionsAwait:    "4 preguntas te esperan",
-    questionLabel:     "Pregunta",
-    correctFeedback:   "¡Correcto!",
-    answerPrefix:      "Respuesta:",
-    nextBtn:           "Siguiente →",
-    resultsBtn:        "Ver resultados →",
-    roundComplete:     "Ronda completa",
-    correctLabel:      "correctas",
-    returnBtn:         "◂ Volver al mapa",
-    scoreComments: [
-      "¡Puntuación perfecta — el mundo no tiene secretos para ti!",
-      "¡Excelente — un explorador experimentado!",
-      "No está mal — sigue viajando y aprendiendo.",
-      "Un pequeño comienzo — cada gran viaje comienza aquí.",
-      "No te preocupes — el mundo recompensa a los curiosos.",
-    ],
+    language: 'Idioma',
+    selectContinent: 'Seleccionar continente',
+    chooseCard: '¡Elige una carta y empieza!',
+    tapToReveal: 'Haz clic para revelar',
+    questionsAwait: '4 preguntas te esperan',
+    instructions: 'Haz clic en una de las 6 cartas para empezar',
+    question: 'Pregunta',
+    correct: '¡Correcto! ¡Bien hecho!',
+    wrongAnswer: 'Respuesta correcta:',
+    next: 'Siguiente',
+    seeResults: 'Ver resultados',
+    roundComplete: '¡Ronda completa!',
+    returnToMap: 'Volver al mapa',
+    score0: '¡Inténtalo de nuevo! 💪',
+    score1: '¡Buen comienzo! Sigue estudiando. 📚',
+    score2: '¡Sólido! Estás mejorando. 🌍',
+    score3: '¡Excelente! ¡Casi perfecto! 🎯',
+    score4: '¡Perfecto! ¡Genio geográfico! 🏆',
     continents: {
-      "Europe": "Europa", "Asia": "Asia", "Africa": "África",
-      "North America": "América del Norte", "South America": "América del Sur", "Australia": "Australia",
-    },
+      'Europa': 'Europa',
+      'Azija': 'Asia',
+      'Afrika': 'África',
+      'Severna Amerika': 'América del Norte',
+      'Južna Amerika': 'América del Sur',
+      'Australija': 'Australia',
+    }
   },
-
+  it: {
+    language: 'Lingua',
+    selectContinent: 'Seleziona un continente',
+    chooseCard: 'Scegli una carta e inizia!',
+    tapToReveal: 'Clicca per rivelare',
+    questionsAwait: '4 domande ti aspettano',
+    instructions: 'Clicca su una delle 6 carte per iniziare',
+    question: 'Domanda',
+    correct: 'Corretto! Bravo!',
+    wrongAnswer: 'Risposta corretta:',
+    next: 'Avanti',
+    seeResults: 'Vedi risultati',
+    roundComplete: 'Round completato!',
+    returnToMap: 'Torna alla mappa',
+    score0: 'Riprova! Puoi fare meglio. 💪',
+    score1: 'Buon inizio! Continua a studiare. 📚',
+    score2: 'Solido! Stai migliorando. 🌍',
+    score3: 'Eccellente! Quasi perfetto! 🎯',
+    score4: 'Perfetto! Genio della geografia! 🏆',
+    continents: {
+      'Europa': 'Europa',
+      'Azija': 'Asia',
+      'Afrika': 'Africa',
+      'Severna Amerika': 'America del Nord',
+      'Južna Amerika': 'America del Sud',
+      'Australija': 'Australia',
+    }
+  },
   pt: {
-    welcomeSubtitle:   "Um quiz de geografia para mentes curiosas",
-    chooseCountry:     "De onde você é?",
-    startBtn:          "Começar",
-    selectionSubtitle: "Seis territórios estão escondidos por trás dessas cartas. Escolha uma para revelar seu destino.",
-    questionsAwait:    "4 perguntas aguardam",
-    questionLabel:     "Pergunta",
-    correctFeedback:   "Correto!",
-    answerPrefix:      "Resposta:",
-    nextBtn:           "Próxima →",
-    resultsBtn:        "Ver resultados →",
-    roundComplete:     "Rodada completa",
-    correctLabel:      "correto",
-    returnBtn:         "◂ Voltar ao mapa",
-    scoreComments: [
-      "Pontuação perfeita — o mundo não tem segredos para você!",
-      "Excelente — um explorador experiente!",
-      "Não está mal — continue viajando e aprendendo.",
-      "Um pequeno começo — toda grande jornada começa aqui.",
-      "Sem preocupações — o mundo recompensa os curiosos.",
-    ],
+    language: 'Idioma',
+    selectContinent: 'Selecionar continente',
+    chooseCard: 'Escolha uma carta e comece!',
+    tapToReveal: 'Clique para revelar',
+    questionsAwait: '4 perguntas esperam por você',
+    instructions: 'Clique em um dos 6 cartões para começar',
+    question: 'Pergunta',
+    correct: 'Correto! Muito bem!',
+    wrongAnswer: 'Resposta correta:',
+    next: 'Próxima',
+    seeResults: 'Ver resultados',
+    roundComplete: 'Rodada completa!',
+    returnToMap: 'Voltar ao mapa',
+    score0: 'Tente novamente! 💪',
+    score1: 'Bom começo! Continue estudando. 📚',
+    score2: 'Sólido! Você está melhorando. 🌍',
+    score3: 'Excelente! Quase perfeito! 🎯',
+    score4: 'Perfeito! Gênio da geografia! 🏆',
     continents: {
-      "Europe": "Europa", "Asia": "Ásia", "Africa": "África",
-      "North America": "América do Norte", "South America": "América do Sul", "Australia": "Austrália",
-    },
+      'Europa': 'Europa',
+      'Azija': 'Ásia',
+      'Afrika': 'África',
+      'Severna Amerika': 'América do Norte',
+      'Južna Amerika': 'América do Sul',
+      'Australija': 'Austrália',
+    }
   },
-
-  ar: {
-    welcomeSubtitle:   "اختبار جغرافي للعقول الفضولية",
-    chooseCountry:     "من أين أنت؟",
-    startBtn:          "ابدأ",
-    selectionSubtitle: "ستة أقاليم مخفية وراء هذه البطاقات. اختر واحدة للكشف عن وجهتك.",
-    questionsAwait:    "٤ أسئلة تنتظرك",
-    questionLabel:     "سؤال",
-    correctFeedback:   "صحيح!",
-    answerPrefix:      "الإجابة الصحيحة:",
-    nextBtn:           "التالي ←",
-    resultsBtn:        "انظر النتائج ←",
-    roundComplete:     "الجولة مكتملة",
-    correctLabel:      "صحيح",
-    returnBtn:         "العودة إلى الخريطة ▸",
-    scoreComments: [
-      "نتيجة مثالية — العالم لا أسرار له أمامك!",
-      "ممتاز — مستكشف متمرس!",
-      "ليس بأس — واصل السفر والتعلم.",
-      "بداية صغيرة — كل رحلة عظيمة تبدأ هنا.",
-      "لا قلق — العالم يكافئ الفضوليين.",
-    ],
-    continents: {
-      "Europe": "أوروبا", "Asia": "آسيا", "Africa": "أفريقيا",
-      "North America": "أمريكا الشمالية", "South America": "أمريكا الجنوبية", "Australia": "أستراليا",
-    },
-  },
-
-  mk: {
-    welcomeSubtitle:   "Географски квиз за љубопитни умови",
-    chooseCountry:     "Од каде сте?",
-    startBtn:          "Почни",
-    selectionSubtitle: "Шест територии скриени зад овие карти. Изберете една за да го откриете одредиштето.",
-    questionsAwait:    "4 прашања чекаат",
-    questionLabel:     "Прашање",
-    correctFeedback:   "Точно!",
-    answerPrefix:      "Одговор:",
-    nextBtn:           "Следно →",
-    resultsBtn:        "Погледај резултати →",
-    roundComplete:     "Рундата е завршена",
-    correctLabel:      "точно",
-    returnBtn:         "◂ Назад на картата",
-    scoreComments: [
-      "Совршен резултат — светот нема тајни пред тебе!",
-      "Одлично — искусен истражувач!",
-      "Не е лошо — продолжи да патуваш и учиш.",
-      "Мал почеток — секое патување почнува тука.",
-      "Нема проблем — светот ги наградува љубопитните.",
-    ],
-    continents: {
-      "Europe": "Европа", "Asia": "Азија", "Africa": "Африка",
-      "North America": "Северна Америка", "South America": "Јужна Америка", "Australia": "Австралија",
-    },
-  },
-
   ru: {
-    welcomeSubtitle:   "Географическая викторина для любознательных умов",
-    chooseCountry:     "Откуда вы?",
-    startBtn:          "Начать",
-    selectionSubtitle: "Шесть территорий скрыты за этими картами. Выберите одну, чтобы раскрыть пункт назначения.",
-    questionsAwait:    "4 вопроса ждут",
-    questionLabel:     "Вопрос",
-    correctFeedback:   "Правильно!",
-    answerPrefix:      "Ответ:",
-    nextBtn:           "Далее →",
-    resultsBtn:        "Результаты →",
-    roundComplete:     "Раунд завершён",
-    correctLabel:      "правильно",
-    returnBtn:         "◂ Назад к карте",
-    scoreComments: [
-      "Идеальный результат — мир не имеет секретов от тебя!",
-      "Отлично — опытный исследователь!",
-      "Неплохо — продолжай путешествовать и учиться.",
-      "Маленькое начало — каждое великое путешествие начинается здесь.",
-      "Не беспокойся — мир вознаграждает любопытных.",
-    ],
+    language: 'Язык',
+    selectContinent: 'Выберите континент',
+    chooseCard: 'Выберите карту и начните викторину!',
+    tapToReveal: 'Нажмите, чтобы открыть',
+    questionsAwait: '4 вопроса ждут',
+    instructions: 'Нажмите на одну из 6 карт, чтобы начать',
+    question: 'Вопрос',
+    correct: 'Правильно! Молодец!',
+    wrongAnswer: 'Правильный ответ:',
+    next: 'Далее',
+    seeResults: 'Посмотреть результаты',
+    roundComplete: 'Раунд завершён!',
+    returnToMap: 'Вернуться к карте',
+    score0: 'Попробуй снова! 💪',
+    score1: 'Хорошее начало! Продолжай учиться. 📚',
+    score2: 'Неплохо! Ты прогрессируешь. 🌍',
+    score3: 'Отлично! Почти идеально! 🎯',
+    score4: 'Идеально! Гений географии! 🏆',
     continents: {
-      "Europe": "Европа", "Asia": "Азия", "Africa": "Африка",
-      "North America": "Северная Америка", "South America": "Южная Америка", "Australia": "Австралия",
-    },
+      'Europa': 'Европа',
+      'Azija': 'Азия',
+      'Afrika': 'Африка',
+      'Severna Amerika': 'Северная Америка',
+      'Južna Amerika': 'Южная Америка',
+      'Australija': 'Австралия',
+    }
   },
-};
+  zh: {
+    language: '语言',
+    selectContinent: '选择大洲',
+    chooseCard: '选一张牌，开始测验！',
+    tapToReveal: '点击揭示',
+    questionsAwait: '4道题目等待你',
+    instructions: '点击6张牌中的一张开始',
+    question: '问题',
+    correct: '正确！干得好！',
+    wrongAnswer: '正确答案：',
+    next: '下一个',
+    seeResults: '查看结果',
+    roundComplete: '本轮结束！',
+    returnToMap: '返回地图',
+    score0: '再试一次！💪',
+    score1: '好的开始！继续学习。📚',
+    score2: '不错！你在进步。🌍',
+    score3: '出色！几乎完美！🎯',
+    score4: '完美！地理天才！🏆',
+    continents: {
+      'Europa': '欧洲',
+      'Azija': '亚洲',
+      'Afrika': '非洲',
+      'Severna Amerika': '北美洲',
+      'Južna Amerika': '南美洲',
+      'Australija': '澳大利亚',
+    }
+  },
+  ja: {
+    language: '言語',
+    selectContinent: '大陸を選択',
+    chooseCard: 'カードを選んでクイズを始めよう！',
+    tapToReveal: 'クリックして公開',
+    questionsAwait: '4問があなたを待っています',
+    instructions: '6枚のカードから1枚を選んでください',
+    question: '問題',
+    correct: '正解！よくできました！',
+    wrongAnswer: '正解：',
+    next: '次へ',
+    seeResults: '結果を見る',
+    roundComplete: 'ラウンド完了！',
+    returnToMap: 'マップに戻る',
+    score0: 'もう一度試してください！💪',
+    score1: '良いスタート！学習を続けましょう。📚',
+    score2: 'しっかりしています！成長しています。🌍',
+    score3: '素晴らしい！ほぼ完璧！🎯',
+    score4: '完璧！地理の天才！🏆',
+    continents: {
+      'Europa': 'ヨーロッパ',
+      'Azija': 'アジア',
+      'Afrika': 'アフリカ',
+      'Severna Amerika': '北アメリカ',
+      'Južna Amerika': '南アメリカ',
+      'Australija': 'オーストラリア',
+    }
+  },
+  ar: {
+    language: 'اللغة',
+    selectContinent: 'اختر قارة',
+    chooseCard: 'اختر بطاقة وابدأ الاختبار!',
+    tapToReveal: 'انقر للكشف',
+    questionsAwait: '4 أسئلة في انتظارك',
+    instructions: 'انقر على إحدى البطاقات الست للبدء',
+    question: 'سؤال',
+    correct: 'صحيح! أحسنت!',
+    wrongAnswer: 'الإجابة الصحيحة:',
+    next: 'التالي',
+    seeResults: 'عرض النتائج',
+    roundComplete: 'اكتملت الجولة!',
+    returnToMap: 'العودة إلى الخريطة',
+    score0: 'حاول مرة أخرى! 💪',
+    score1: 'بداية جيدة! استمر في التعلم. 📚',
+    score2: 'متين! أنت تتحسن. 🌍',
+    score3: 'ممتاز! تقريبًا مثالي! 🎯',
+    score4: 'مثالي! عبقري الجغرافيا! 🏆',
+    continents: {
+      'Europa': 'أوروبا',
+      'Azija': 'آسيا',
+      'Afrika': 'أفريقيا',
+      'Severna Amerika': 'أمريكا الشمالية',
+      'Južna Amerika': 'أمريكا الجنوبية',
+      'Australija': 'أستراليا',
+    }
+  },
+  tr: {
+    language: 'Dil',
+    selectContinent: 'Kıta seçin',
+    chooseCard: 'Bir kart seç ve quizi başlat!',
+    tapToReveal: 'Açmak için tıkla',
+    questionsAwait: '4 soru sizi bekliyor',
+    instructions: 'Başlamak için 6 karttan birine tıklayın',
+    question: 'Soru',
+    correct: 'Doğru! Aferin!',
+    wrongAnswer: 'Doğru cevap:',
+    next: 'Sonraki',
+    seeResults: 'Sonuçları Gör',
+    roundComplete: 'Tur Tamamlandı!',
+    returnToMap: 'Haritaya Dön',
+    score0: 'Tekrar deneyin! 💪',
+    score1: 'İyi başlangıç! Öğrenmeye devam et. 📚',
+    score2: 'Güçlü! Gelişiyorsunuz. 🌍',
+    score3: 'Mükemmel! Neredeyse mükemmel! 🎯',
+    score4: 'Mükemmel! Coğrafya dahisi! 🏆',
+    continents: {
+      'Europa': 'Avrupa',
+      'Azija': 'Asya',
+      'Afrika': 'Afrika',
+      'Severna Amerika': 'Kuzey Amerika',
+      'Južna Amerika': 'Güney Amerika',
+      'Australija': 'Avustralya',
+    }
+  },
+}
 
-// ── State ─────────────────────────────────────────────────────
-const phase            = ref("welcome");
-const selectedCountry  = ref(COUNTRIES[0]);   // default: Srbija / Serbian
-const currentLang      = ref("sr");
-const cardDeck         = ref([]);
-const activeContinent  = ref("");
-const roundQuestions   = ref([]);
-const currentIndex     = ref(0);
-const displayedOptions = ref([]);
-const selectedAnswer   = ref(null);
-const answered         = ref(false);
-const isCorrect        = ref(false);
-const isTransitioning  = ref(false);
-const score            = ref(0);
-const pipResults       = ref([null, null, null, null]);
+// Translation helper
+function t(key) {
+  return uiStrings[currentLang.value]?.[key] || uiStrings['en'][key] || key
+}
 
-// ── Computed ──────────────────────────────────────────────────
-const t           = computed(() => TRANSLATIONS[currentLang.value] ?? TRANSLATIONS.en);
-const isRTL       = computed(() => currentLang.value === "ar");
-const currentQ    = computed(() => roundQuestions.value[currentIndex.value] ?? null);
-const anyRevealed = computed(() => cardDeck.value.some(c => c.revealed));
-const scoreComment = computed(() => {
-  const idx = Math.max(0, Math.min(4, 4 - score.value));
-  return t.value.scoreComments[idx];
-});
+// ─── TRANSLATION CACHE ────────────────────────────────────────
+const translationCache = ref({})
+const isTranslating = ref(false)
 
-// ── Helpers ───────────────────────────────────────────────────
+async function translateWithAPI(texts, targetLang) {
+  const cacheKey = `${targetLang}:${texts.join('|||')}`
+  if (translationCache.value[cacheKey]) return translationCache.value[cacheKey]
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: `Translate these geographic quiz questions/answers from Serbian to ${targetLang}. Keep proper nouns (country names, city names, geographic features) in the target language convention. Return ONLY a JSON array of translated strings in the same order, no explanation, no markdown:
+
+${JSON.stringify(texts)}`
+        }]
+      })
+    })
+    const data = await response.json()
+    const text = data.content?.[0]?.text || '[]'
+    const clean = text.replace(/```json|```/g, '').trim()
+    const result = JSON.parse(clean)
+    translationCache.value[cacheKey] = result
+    return result
+  } catch (e) {
+    console.error('Translation error:', e)
+    return texts
+  }
+}
+
+// ─── GAME STATE ───────────────────────────────────────────────
+const phase = ref('selection')
+const cardDeck = ref([])
+const activeContinent = ref('')
+const roundQuestions = ref([])
+const currentIndex = ref(0)
+const score = ref(0)
+const answered = ref(false)
+const isCorrect = ref(false)
+const pipResults = ref([null, null, null, null])
+const displayedOptions = ref([])
+
+// Translated current question & answers
+const translatedQuestion = ref('')
+const translatedOptions = ref([])
+const translatedCorrect = ref('')
+
+const continentKeys = ['Europa', 'Azija', 'Afrika', 'Severna Amerika', 'Južna Amerika', 'Australija']
+
 function shuffle(arr) {
-  const a = [...arr];
+  const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
+    [a[i], a[j]] = [a[j], a[i]]
   }
-  return a;
+  return a
 }
 
-function buildOptions(q) {
-  return shuffle([q.correct, ...shuffle(q.wrong).slice(0, 3)]);
+function buildCardDeck() {
+  cardDeck.value = shuffle(continentKeys).map(c => ({ continent: c, revealed: false }))
 }
 
-function continentStyle(name) {
-  const c = CONTINENT_COLORS[name] ?? { from: "#1a1a2e", to: "#2a2a4e", accent: "#8888cc" };
-  return {
-    background: `linear-gradient(145deg, ${c.from}, ${c.to})`,
-    "--cf-accent": c.accent,
-  };
+const anyRevealed = computed(() => cardDeck.value.some(c => c.revealed))
+
+function revealCard(card) {
+  if (anyRevealed.value) return
+  card.revealed = true
+  activeContinent.value = card.continent
+  setTimeout(startQuiz, 1200)
 }
 
-function cardBackStyle(i) {
-  const c = CARD_BACK_COLORS[i % CARD_BACK_COLORS.length];
-  return {
-    background: `linear-gradient(160deg, ${c.from} 0%, ${c.to} 100%)`,
-    borderColor: `${c.accent}55`,
-    color: c.accent,
-  };
+async function startQuiz() {
+  const pool = questions.filter(q => q.continent === activeContinent.value)
+  const picked = shuffle(pool).slice(0, 4)
+  roundQuestions.value = picked
+  currentIndex.value = 0
+  score.value = 0
+  pipResults.value = [null, null, null, null]
+  await loadQuestion()
+  phase.value = 'quiz'
+}
+
+async function loadQuestion() {
+  const q = roundQuestions.value[currentIndex.value]
+  answered.value = false
+  isCorrect.value = false
+
+  const lang = currentLang.value
+
+  if (lang === 'sr') {
+    // Native Serbian - no translation needed
+    const wrongs = shuffle(q.wrong).slice(0, 3)
+    displayedOptions.value = shuffle([q.correct, ...wrongs])
+    translatedQuestion.value = q.question
+    translatedOptions.value = displayedOptions.value
+    translatedCorrect.value = q.correct
+  } else {
+    isTranslating.value = true
+    const wrongs = shuffle(q.wrong).slice(0, 3)
+    const rawOptions = [q.correct, ...wrongs]
+    const toTranslate = [q.question, ...rawOptions]
+    const langName = languages.find(l => l.code === lang)?.name || 'English'
+    const translated = await translateWithAPI(toTranslate, langName)
+    translatedQuestion.value = translated[0] || q.question
+    const tOptions = translated.slice(1)
+    const shuffled = shuffle(tOptions.map((t, i) => ({ t, isCorrect: i === 0 })))
+    displayedOptions.value = shuffled.map(x => x.t)
+    translatedOptions.value = displayedOptions.value
+    translatedCorrect.value = shuffled.find(x => x.isCorrect)?.t || translated[1]
+    isTranslating.value = false
+  }
 }
 
 function answerClass(option) {
-  if (!answered.value) return "";
-  if (option === currentQ.value?.correct) return "correct";
-  if (option === selectedAnswer.value)    return "wrong";
-  return "dimmed";
+  if (!answered.value) return ''
+  if (option === translatedCorrect.value) return 'correct'
+  if (option === selectedOption.value) return 'wrong'
+  return 'dimmed'
 }
 
-// ── Welcome ───────────────────────────────────────────────────
-function selectCountry(country) {
-  selectedCountry.value = country;
-  currentLang.value = country.lang;
-}
-
-function startGame() {
-  buildCardDeck();
-  phase.value = "selection";
-}
-
-// ── Selection ─────────────────────────────────────────────────
-function buildCardDeck() {
-  cardDeck.value = shuffle(CONTINENTS).map(c => ({ continent: c, revealed: false }));
-}
-
-function revealCard(card) {
-  if (card.revealed || anyRevealed.value) return;
-  card.revealed = true;
-  activeContinent.value = card.continent;
-  setTimeout(startQuiz, 1200);
-}
-
-// ── Quiz ──────────────────────────────────────────────────────
-function startQuiz() {
-  const pool = questions.filter(q => q.continent === activeContinent.value);
-  roundQuestions.value  = shuffle(pool).slice(0, 4);
-  currentIndex.value    = 0;
-  score.value           = 0;
-  pipResults.value      = [null, null, null, null];
-  loadQuestion();
-  phase.value = "quiz";
-}
-
-function loadQuestion() {
-  const q = currentQ.value;
-  if (!q) return;
-  displayedOptions.value = buildOptions(q);
-  selectedAnswer.value   = null;
-  answered.value         = false;
-  isCorrect.value        = false;
-}
+const selectedOption = ref('')
 
 function selectAnswer(option) {
-  if (answered.value) return;
-  selectedAnswer.value                  = option;
-  answered.value                        = true;
-  isCorrect.value                       = option === currentQ.value?.correct;
-  pipResults.value[currentIndex.value]  = isCorrect.value;
-  if (isCorrect.value) score.value++;
+  if (answered.value) return
+  selectedOption.value = option
+  answered.value = true
+  isCorrect.value = option === translatedCorrect.value
+  pipResults.value[currentIndex.value] = isCorrect.value
+  if (isCorrect.value) score.value++
 }
 
-function nextQuestion() {
-  if (currentIndex.value >= 3) {
-    phase.value = "result";
-    return;
+async function nextQuestion() {
+  if (currentIndex.value < roundQuestions.value.length - 1) {
+    currentIndex.value++
+    await loadQuestion()
+  } else {
+    phase.value = 'result'
   }
-  isTransitioning.value = true;
-  setTimeout(() => {
-    currentIndex.value++;
-    loadQuestion();
-    isTransitioning.value = false;
-  }, 280);
 }
 
-// ── Result ────────────────────────────────────────────────────
 function returnToMap() {
-  phase.value = "selection";
-  buildCardDeck();
+  phase.value = 'selection'
+  buildCardDeck()
+}
+
+const scoreComment = computed(() => {
+  const s = score.value
+  if (s === 0) return t('score0')
+  if (s === 1) return t('score1')
+  if (s === 2) return t('score2')
+  if (s === 3) return t('score3')
+  return t('score4')
+})
+
+// ─── CONTINENT HELPERS ────────────────────────────────────────
+function continentEmoji(name) {
+  const map = {
+    'Europa': '🏰',
+    'Azija': '🏯',
+    'Afrika': '🦁',
+    'Severna Amerika': '🗽',
+    'Južna Amerika': '🌿',
+    'Australija': '🦘',
+  }
+  return map[name] || '🌍'
+}
+
+function translateContinent(name) {
+  return uiStrings[currentLang.value]?.continents?.[name] || uiStrings['en'].continents[name] || name
+}
+
+function continentStyle(name) {
+  const map = {
+    'Europa': { bg: 'linear-gradient(135deg, #1a237e 0%, #283593 60%, #3949ab 100%)', accent: '#7986cb' },
+    'Azija': { bg: 'linear-gradient(135deg, #b71c1c 0%, #c62828 60%, #e53935 100%)', accent: '#ef9a9a' },
+    'Afrika': { bg: 'linear-gradient(135deg, #e65100 0%, #ef6c00 60%, #fb8c00 100%)', accent: '#ffcc80' },
+    'Severna Amerika': { bg: 'linear-gradient(135deg, #1b5e20 0%, #2e7d32 60%, #388e3c 100%)', accent: '#a5d6a7' },
+    'Južna Amerika': { bg: 'linear-gradient(135deg, #006064 0%, #00838f 60%, #0097a7 100%)', accent: '#80deea' },
+    'Australija': { bg: 'linear-gradient(135deg, #bf360c 0%, #d84315 60%, #e64a19 100%)', accent: '#ffab91' },
+  }
+  const style = map[name] || { bg: 'linear-gradient(135deg, #37474f, #546e7a)', accent: '#b0bec5' }
+  return { background: style.bg, '--cf-accent': style.accent }
+}
+
+// ─── LANGUAGE CHANGE ─────────────────────────────────────────
+async function changeLang(code) {
+  currentLang.value = code
+  if (phase.value === 'quiz') {
+    await loadQuestion()
+  }
 }
 
 onMounted(() => {
-  // Welcome screen shown first; deck built when user presses Start.
-});
+  buildCardDeck()
+})
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600&family=DM+Sans:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
 
+/* ─── CSS Variables ─── */
 :root {
-  --ink:        #1a2233;
-  --ink-soft:   #2e3d55;
-  --paper:      #f8f4ee;
-  --bg:         #f0ece3;
-  --gold:       #b8832e;
-  --gold-lt:    #d4a850;
-  --gold-dk:    #6e4a10;
-  --gold-pale:  #f5e8cc;
-  --teal:       #1a5f7a;
-  --correct:    #2d7a4f;
-  --correct-bg: #d4f0e2;
-  --wrong:      #8b2635;
-  --wrong-bg:   #fce4e7;
-  --dim:        #7a7060;
-  --card-bg:    #ffffff;
-  --shadow:     rgba(26,34,51,.12);
-  --radius:     1.1rem;
+  --ink: #0d1117;
+  --ink-2: #161b22;
+  --ink-3: #21262d;
+  --surface: #1a1f2e;
+  --gold: #f5c842;
+  --gold-dim: rgba(245, 200, 66, 0.15);
+  --gold-border: rgba(245, 200, 66, 0.35);
+  --text: #c9d1d9;
+  --text-dim: #8b949e;
+  --text-h: #f0f6fc;
+  --correct: #3fb950;
+  --wrong: #f85149;
+  --correct-bg: rgba(63, 185, 80, 0.12);
+  --wrong-bg: rgba(248, 81, 73, 0.12);
+  --border: rgba(240, 246, 252, 0.08);
+  --radius: 16px;
+  --shadow: 0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+  --shadow-lg: 0 20px 60px rgba(0,0,0,0.5), 0 4px 16px rgba(0,0,0,0.3);
+  --font-body: 'DM Sans', system-ui, sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--bg);
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--font-body);
   min-height: 100vh;
   overflow-x: hidden;
-  color: var(--ink);
 }
 
-/* ── Wrapper ────────────────────────────────────────────────── */
-.game-wrapper {
+/* ─── Background ─── */
+#app-wrapper {
+  position: relative;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.bg-blob {
+  position: fixed;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.12;
+  pointer-events: none;
+  z-index: 0;
+}
+.blob-1 {
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, #1a6b4a, transparent);
+  top: -200px; left: -200px;
+}
+.blob-2 {
+  width: 500px; height: 500px;
+  background: radial-gradient(circle, #f5c842, transparent);
+  bottom: -150px; right: -150px;
+}
+.grid-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(rgba(240,246,252,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(240,246,252,0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+}
+
+/* ─── Header ─── */
+.app-header {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 32px;
+  background: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.logo-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.logo-icon { font-size: 26px; }
+.logo-text {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--gold);
+  letter-spacing: 0.5px;
+}
+
+.lang-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+  justify-content: flex-end;
+}
+.lang-label {
+  font-size: 13px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Cross-browser scrollable language row */
+.lang-scroll-container {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: var(--gold-border) transparent;
+  max-width: 600px;
+  flex: 1;
+  min-width: 0;
+  /* Force scroll on all browsers */
+  display: block;
+}
+.lang-scroll-container::-webkit-scrollbar {
+  height: 4px;
+}
+.lang-scroll-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+.lang-scroll-container::-webkit-scrollbar-thumb {
+  background: var(--gold-border);
+  border-radius: 2px;
+}
+
+.lang-scroll-inner {
+  display: flex;
+  gap: 6px;
+  padding: 4px 2px;
+  /* Prevent wrapping so scroll works */
+  flex-wrap: nowrap;
+  width: max-content;
+}
+
+.lang-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.lang-btn:hover {
+  background: var(--gold-dim);
+  border-color: var(--gold-border);
+  color: var(--gold);
+}
+.lang-btn.active {
+  background: var(--gold-dim);
+  border-color: var(--gold);
+  color: var(--gold);
+  font-weight: 600;
+}
+.lang-flag { font-size: 16px; }
+.lang-name { font-size: 13px; }
+
+/* ─── Main ─── */
+.app-main {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 40px 24px;
+}
+
+.phase-screen {
+  width: 100%;
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 32px;
+}
+
+/* ─── Phase transitions ─── */
+.phase-enter-active, .phase-leave-active {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+.phase-enter-from { opacity: 0; transform: translateY(20px); }
+.phase-leave-to { opacity: 0; transform: translateY(-20px); }
+
+/* ─── Title Block ─── */
+.title-block { text-align: center; }
+.subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 10px;
+}
+.main-title {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 700;
+  color: var(--text-h);
+  letter-spacing: -0.5px;
+}
+
+/* ─── Card Grid ─── */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  width: 100%;
+}
+@media (max-width: 600px) {
+  .card-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+}
+@media (max-width: 380px) {
+  .card-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+}
+
+.card-wrapper {
+  perspective: 1200px;
+  cursor: pointer;
+  transition: opacity 0.35s ease, filter 0.35s ease;
+  aspect-ratio: 3/4;
+}
+.card-wrapper.locked {
+  pointer-events: none;
+  opacity: 0.22;
+  filter: blur(2px);
+}
+.card-wrapper:not(.locked):hover .card-inner {
+  transform: translateY(-8px) rotateY(5deg);
+  box-shadow: 0 24px 48px rgba(0,0,0,0.5);
+}
+
+.card-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.75s cubic-bezier(0.4, 0.2, 0.2, 1), box-shadow 0.3s ease;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+.card-inner.flipped { transform: rotateY(180deg); }
+
+.card-face {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+/* Card Back */
+.card-back {
+  background: linear-gradient(145deg, #1a1f2e 0%, #0f1319 50%, #1e2433 100%);
+  border: 1px solid var(--gold-border);
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 2rem 1rem;
-  gap: 1.6rem;
+  gap: 12px;
+  padding: 20px;
   position: relative;
-  background:
-    radial-gradient(ellipse 80% 60% at 15% 10%, rgba(26,95,122,.10) 0%, transparent 60%),
-    radial-gradient(ellipse 60% 50% at 85% 90%, rgba(184,131,46,.12) 0%, transparent 55%),
-    var(--bg);
 }
-
-.bg-grid {
-  position: fixed; inset: 0; pointer-events: none; z-index: 0;
-  background-image:
-    linear-gradient(rgba(26,34,51,.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(26,34,51,.04) 1px, transparent 1px);
-  background-size: 44px 44px;
+.card-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(245, 200, 66, 0.06) 50%,
+    transparent 60%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3s linear infinite;
+  pointer-events: none;
 }
-
-.compass-rose {
-  position: fixed; top: -60px; right: -60px;
-  width: 280px; height: 280px;
-  color: var(--gold); opacity: .12;
-  pointer-events: none; z-index: 0;
-  animation: spin 90s linear infinite;
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── Screen transition ──────────────────────────────────────── */
-.screen-enter-active { transition: opacity .38s ease, transform .38s ease; }
-.screen-leave-active { transition: opacity .22s ease, transform .22s ease; position: absolute; width: 100%; }
-.screen-enter-from   { opacity: 0; transform: translateY(18px); }
-.screen-leave-to     { opacity: 0; transform: translateY(-10px); }
-
-/* ── Shared title elements ──────────────────────────────────── */
-.game-title {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(2.4rem, 6vw, 3.8rem);
-  font-weight: 700; color: var(--gold-dk);
-  letter-spacing: .05em; line-height: 1;
+.card-back-number {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 4vw, 32px);
+  color: var(--gold);
+  font-weight: 600;
 }
-
-.title-rule {
-  display: flex; align-items: center; gap: .55rem;
-  width: 100%; max-width: 300px;
+.card-back-pattern {
+  width: 60px;
+  height: 60px;
+  color: rgba(245, 200, 66, 0.3);
 }
-.title-rule span:first-child,
-.title-rule span:last-child {
-  flex: 1; height: 1px;
-  background: linear-gradient(to right, transparent, var(--gold), transparent);
-  opacity: .6;
-}
-.rule-diamond { color: var(--gold); font-size: .6rem; flex-shrink: 0; }
-
-/* ══════════════════════════════════════════════════════════ */
-/*  WELCOME SCREEN                                            */
-/* ══════════════════════════════════════════════════════════ */
-.welcome-screen {
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1; width: 100%; padding: 1rem;
-}
-
-.welcome-card {
-  width: 100%; max-width: 680px;
-  background: var(--card-bg);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 0 rgba(255,255,255,.8) inset, 0 20px 60px var(--shadow), 0 4px 16px rgba(0,0,0,.08);
-  padding: 2.5rem 2rem 2rem;
-  display: flex; flex-direction: column;
-  align-items: center; gap: 1.2rem;
-  border: 1px solid rgba(184,131,46,.15);
-}
-
-.welcome-tagline {
-  font-size: clamp(.85rem, 2vw, 1rem);
-  color: var(--dim); font-weight: 400;
-  line-height: 1.6; letter-spacing: .02em;
+.card-back-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
   text-align: center;
 }
 
-/* Country selector */
-.country-selector-block {
-  width: 100%;
-  margin-top: .4rem;
-  display: flex; flex-direction: column; gap: .9rem;
-}
-
-.selector-label {
-  font-size: .72rem; font-weight: 600;
-  color: var(--dim); text-transform: uppercase;
-  letter-spacing: .12em; text-align: center;
-}
-
-.country-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(138px, 1fr));
-  gap: .45rem;
-  max-height: 280px;
-  overflow-y: auto;
-  padding: .5rem;
-  border: 1px solid rgba(26,34,51,.08);
-  border-radius: .75rem;
-  background: var(--bg);
-  scrollbar-width: thin;
-  scrollbar-color: var(--gold-lt) transparent;
-}
-.country-grid::-webkit-scrollbar { width: 4px; }
-.country-grid::-webkit-scrollbar-thumb { background: var(--gold-lt); border-radius: 4px; }
-
-.country-btn {
-  display: flex; align-items: center; gap: .5rem;
-  padding: .55rem .75rem;
-  border: 1.5px solid rgba(26,34,51,.10);
-  border-radius: .55rem;
-  background: var(--card-bg);
-  cursor: pointer; text-align: left;
-  font-family: 'DM Sans', sans-serif;
-  font-size: .82rem; font-weight: 400; color: var(--ink);
-  transition: border-color .15s, background .15s, transform .1s, box-shadow .15s;
-  white-space: nowrap; overflow: hidden;
-}
-.country-btn:hover {
-  border-color: var(--gold);
-  background: var(--gold-pale);
-  transform: translateY(-1px);
-  box-shadow: 0 3px 10px rgba(184,131,46,.15);
-}
-.country-btn.selected {
-  border-color: var(--gold);
-  background: var(--gold-pale);
-  font-weight: 600; color: var(--gold-dk);
-  box-shadow: 0 0 0 2px rgba(184,131,46,.20);
-}
-
-.country-flag { font-size: 1.1rem; line-height: 1; flex-shrink: 0; }
-.country-label { overflow: hidden; text-overflow: ellipsis; }
-
-/* Start button */
-.start-btn {
-  margin-top: .4rem;
-  width: 100%; max-width: 260px;
-  padding: .9rem 2.5rem;
-  border: none; border-radius: .75rem;
-  background: var(--ink); color: var(--gold-lt);
-  font-family: 'DM Sans', sans-serif; font-weight: 600;
-  font-size: 1.05rem; letter-spacing: .06em; text-transform: uppercase;
-  cursor: pointer;
-  transition: background .18s, transform .12s, box-shadow .18s;
-  box-shadow: 0 4px 18px rgba(26,34,51,.20);
-}
-.start-btn:hover {
-  background: var(--teal);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 24px rgba(26,95,122,.30);
-}
-.start-btn:active { transform: translateY(0); }
-
-/* ══════════════════════════════════════════════════════════ */
-/*  SELECTION SCREEN                                          */
-/* ══════════════════════════════════════════════════════════ */
-.selection-screen {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 2.2rem;
-  z-index: 1; width: 100%; max-width: 720px;
-}
-
-.game-title-block {
-  text-align: center; display: flex;
-  flex-direction: column; gap: .75rem; align-items: center;
-}
-
-.game-subtitle {
-  font-size: clamp(.82rem, 2vw, .97rem);
-  color: var(--dim); font-weight: 400;
-  line-height: 1.65; letter-spacing: .02em;
-}
-
-/* ── Cards grid ─────────────────────────────────────────── */
-.cards-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1.1rem;
-  width: 100%; max-width: 600px;
-}
-@media (max-width: 520px) {
-  .cards-grid { grid-template-columns: repeat(2, 1fr); gap: .8rem; }
-}
-
-/* ── Mystery card ───────────────────────────────────────── */
-.mystery-card {
-  aspect-ratio: 3 / 4;
-  perspective: 1000px;
-  cursor: pointer;
-  transition: opacity .3s, filter .3s;
-}
-.mystery-card.locked {
-  pointer-events: none;
-  opacity: .28;
-  filter: blur(1.5px);
-}
-
-.card-inner {
-  width: 100%; height: 100%;
-  position: relative;
-  transform-style: preserve-3d;
-  transition: transform .75s cubic-bezier(.4, 0, .2, 1);
-  border-radius: 1rem;
-}
-.mystery-card.flipped .card-inner { transform: rotateY(180deg); }
-
-.mystery-card:not(.flipped):not(.locked):hover .card-inner {
-  transform: translateY(-7px) rotateY(6deg);
-}
-
-.card-back,
-.card-front {
-  position: absolute; inset: 0;
-  border-radius: 1rem;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
-}
-
-/* Back — color comes from inline cardBackStyle() */
-.card-back {
-  border: 1px solid transparent;
-  overflow: hidden;
-  box-shadow: 0 8px 30px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.06);
-}
-.cb-frame {
-  position: absolute; inset: 10px;
-  border: 1px solid rgba(255,255,255,.15);
-  border-radius: .55rem;
-  display: flex; align-items: center; justify-content: center;
-}
-.cb-corner {
-  position: absolute; width: 11px; height: 11px;
-  border-color: currentColor; border-style: solid; opacity: .6;
-}
-.cb-corner--tl { top:-1px; left:-1px;   border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
-.cb-corner--tr { top:-1px; right:-1px;  border-width: 2px 2px 0 0; border-radius: 0 3px 0 0; }
-.cb-corner--bl { bottom:-1px; left:-1px;  border-width: 0 0 2px 2px; border-radius: 0 0 0 3px; }
-.cb-corner--br { bottom:-1px; right:-1px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
-.cb-center {
-  display: flex; flex-direction: column;
-  align-items: center; gap: .6rem;
-}
-.cb-pattern { width: 52px; height: 52px; }
-.cb-roman {
-  font-family: 'Playfair Display', serif;
-  font-size: .95rem; font-weight: 600;
-  letter-spacing: .2em; opacity: .8;
-}
-.cb-shimmer {
-  position: absolute; inset: 0; pointer-events: none;
-  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,.07) 50%, transparent 70%);
-  background-size: 200% 100%;
-  animation: shimmer 3.5s ease-in-out infinite;
-}
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
-/* Front */
+/* Card Front */
 .card-front {
   transform: rotateY(180deg);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: .45rem; padding: 1rem;
-  border: 1px solid rgba(255,255,255,.1);
-  box-shadow: 0 8px 30px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px;
+  text-align: center;
 }
-.cf-glow {
-  position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
-  background: radial-gradient(ellipse at 50% 25%, rgba(255,255,255,.14) 0%, transparent 65%);
+.card-front-emoji { font-size: clamp(32px, 6vw, 48px); }
+.card-front-name {
+  font-family: var(--font-display);
+  font-size: clamp(14px, 2.5vw, 20px);
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
 }
-.cf-icon   { font-size: 2.5rem; line-height: 1; }
-.cf-name   {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(.8rem, 2vw, 1rem); font-weight: 700;
-  color: #fff; text-align: center; line-height: 1.2;
-  text-shadow: 0 1px 4px rgba(0,0,0,.4);
+.card-front-divider {
+  width: 40px; height: 2px;
+  background: rgba(255,255,255,0.4);
+  border-radius: 1px;
 }
-.cf-divider {
-  width: 26px; height: 1px;
-  background: var(--cf-accent, rgba(255,255,255,.4));
-  margin: .1rem 0;
-}
-.cf-sub {
-  font-size: .68rem; font-weight: 500;
-  color: var(--cf-accent, rgba(255,255,255,.55));
-  text-transform: uppercase; letter-spacing: .1em;
+.card-front-info {
+  font-size: 11px;
+  color: rgba(255,255,255,0.7);
+  letter-spacing: 1px;
+  text-transform: uppercase;
 }
 
-/* ══════════════════════════════════════════════════════════ */
-/*  QUIZ SCREEN                                               */
-/* ══════════════════════════════════════════════════════════ */
+.instructions-text {
+  font-size: 14px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* ─── Quiz ─── */
 .quiz-container {
-  display: flex; flex-direction: column;
-  align-items: center; gap: 1rem;
-  z-index: 1; width: 100%;
-}
-
-.game-card {
-  width: 100%; max-width: 680px;
-  background: var(--card-bg);
-  border-radius: var(--radius);
-  box-shadow: 0 2px 0 rgba(255,255,255,.8) inset, 0 20px 60px var(--shadow), 0 4px 16px rgba(0,0,0,.08);
+  width: 100%;
+  max-width: 720px;
+  background: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
   overflow: hidden;
-  border: 1px solid rgba(26,34,51,.06);
-  transition: opacity .28s ease, transform .28s ease;
+  box-shadow: var(--shadow-lg);
 }
-.card-exit { opacity: 0; transform: translateY(12px) scale(.98); }
 
-.card-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: .9rem 1.5rem;
-  background: var(--ink);
-  border-bottom: 2px solid var(--gold);
+.quiz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  gap: 12px;
 }
-.continent-tag { display: flex; align-items: center; gap: .55rem; }
-.continent-icon { font-size: 1.35rem; line-height: 1; }
-.continent-name {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.05rem; font-weight: 700;
-  color: var(--gold-lt); letter-spacing: .03em;
+.quiz-continent-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
-.progress-info { display: flex; align-items: baseline; gap: .35rem; }
-.progress-label {
-  font-size: .72rem; font-weight: 500;
-  color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: .08em;
+.quiz-emoji { font-size: 22px; }
+.quiz-continent-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: #fff;
 }
-.progress-count {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.1rem; font-weight: 700; color: var(--gold-lt);
+.quiz-progress-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+  white-space: nowrap;
 }
-.progress-total { color: rgba(255,255,255,.4); font-size: .85rem; }
 
-.question-section {
-  padding: 2rem 2rem 1.5rem;
-  border-bottom: 1px solid rgba(26,34,51,.07);
+.progress-bar-track {
+  height: 3px;
+  background: rgba(255,255,255,0.1);
 }
+.progress-bar-fill {
+  height: 100%;
+  background: var(--gold);
+  transition: width 0.4s ease;
+}
+
+.quiz-body { padding: 28px 24px 20px; }
+
+.q-slide-enter-active, .q-slide-leave-active {
+  transition: opacity 0.28s ease, transform 0.28s ease;
+}
+.q-slide-enter-from { opacity: 0; transform: translateX(20px); }
+.q-slide-leave-to { opacity: 0; transform: translateX(-20px); }
+
 .question-text {
-  font-family: 'Playfair Display', serif;
-  font-size: clamp(1.15rem, 2.5vw, 1.42rem);
-  font-weight: 600; line-height: 1.48; color: var(--ink);
+  font-family: var(--font-display);
+  font-size: clamp(17px, 2.5vw, 22px);
+  font-weight: 500;
+  color: var(--text-h);
+  line-height: 1.45;
+  margin-bottom: 24px;
+  text-align: center;
 }
 
-.answers-section {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: .75rem; padding: 1.4rem 1.5rem 1.5rem;
+.answers-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
 }
-@media (max-width: 520px) { .answers-section { grid-template-columns: 1fr; } }
+@media (max-width: 500px) {
+  .answers-grid { grid-template-columns: 1fr; }
+}
 
 .answer-btn {
-  display: flex; align-items: center; gap: .75rem;
-  padding: .85rem 1rem;
-  border: 2px solid rgba(26,34,51,.12); border-radius: .7rem;
-  background: white; cursor: pointer; text-align: left;
-  transition: border-color .16s, background .16s, transform .12s, box-shadow .16s;
-  font-family: 'DM Sans', sans-serif; font-size: .94rem; font-weight: 400;
-  color: var(--ink); line-height: 1.35;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--ink-3);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s ease;
+  line-height: 1.4;
 }
 .answer-btn:not(:disabled):hover {
-  border-color: var(--teal); background: rgba(26,95,122,.05);
-  transform: translateY(-1px); box-shadow: 0 4px 14px rgba(26,95,122,.12);
+  background: var(--gold-dim);
+  border-color: var(--gold-border);
+  color: var(--text-h);
+  transform: translateY(-2px);
 }
-.answer-btn:not(:disabled):active { transform: translateY(0); }
-.answer-letter {
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 1.8rem; height: 1.8rem; border-radius: .4rem;
-  background: var(--ink); color: var(--paper);
-  font-weight: 700; font-size: .78rem; letter-spacing: .04em;
-  flex-shrink: 0; transition: background .16s;
-}
-.answer-btn.correct { border-color: var(--correct); background: var(--correct-bg); }
-.answer-btn.correct .answer-letter { background: var(--correct); }
-.answer-btn.wrong   { border-color: var(--wrong); background: var(--wrong-bg); }
-.answer-btn.wrong   .answer-letter { background: var(--wrong); }
-.answer-btn.dimmed  { opacity: .38; cursor: default; }
 .answer-btn:disabled { cursor: default; }
+.answer-btn.correct {
+  background: var(--correct-bg);
+  border-color: var(--correct);
+  color: var(--correct);
+}
+.answer-btn.wrong {
+  background: var(--wrong-bg);
+  border-color: var(--wrong);
+  color: var(--wrong);
+}
+.answer-btn.dimmed {
+  opacity: 0.35;
+}
+
+.answer-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-width: 28px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.06);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-dim);
+  font-family: var(--font-body);
+}
+.answer-btn.correct .answer-letter { background: rgba(63,185,80,0.2); color: var(--correct); }
+.answer-btn.wrong .answer-letter { background: rgba(248,81,73,0.2); color: var(--wrong); }
+
+/* Feedback bar */
+.feedback-enter-active, .feedback-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.feedback-enter-from { opacity: 0; transform: translateY(8px); }
+.feedback-leave-to { opacity: 0; transform: translateY(8px); }
 
 .feedback-bar {
-  display: flex; align-items: center; gap: .9rem;
-  padding: 1rem 1.5rem; border-top: 2px solid transparent;
-  font-weight: 500; font-size: .95rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 12px;
+  margin-top: 4px;
+  flex-wrap: wrap;
 }
-.feedback-correct { background: var(--correct-bg); border-color: var(--correct); color: var(--correct); }
-.feedback-wrong   { background: var(--wrong-bg);   border-color: var(--wrong);   color: var(--wrong); }
-.feedback-icon { font-size: 1.3rem; font-weight: 700; flex-shrink: 0; }
-.feedback-msg  { flex: 1; }
+.feedback-correct { background: var(--correct-bg); border: 1px solid rgba(63,185,80,0.3); }
+.feedback-wrong { background: var(--wrong-bg); border: 1px solid rgba(248,81,73,0.3); }
+
+.feedback-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.feedback-icon {
+  font-size: 18px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.feedback-correct .feedback-icon { color: var(--correct); }
+.feedback-wrong .feedback-icon { color: var(--wrong); }
+.feedback-msg {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+  line-height: 1.3;
+}
+
 .next-btn {
-  margin-left: auto; flex-shrink: 0;
-  padding: .5rem 1.1rem; border: none; border-radius: .55rem;
-  background: var(--ink); color: var(--gold-lt);
-  font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: .85rem;
-  cursor: pointer; letter-spacing: .02em;
-  transition: background .15s, transform .12s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  background: var(--gold);
+  border: none;
+  border-radius: 8px;
+  color: #000;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.next-btn:hover { background: var(--teal); transform: translateX(2px); }
+.next-btn:hover { background: #e8bb36; transform: translateY(-1px); }
+.next-arrow { font-size: 16px; }
 
-[dir="rtl"] .next-btn:hover { transform: translateX(-2px); }
-
-.feedback-enter-active { transition: all .22s ease; }
-.feedback-leave-active { transition: all .15s ease; }
-.feedback-enter-from   { opacity: 0; transform: translateY(6px); }
-.feedback-leave-to     { opacity: 0; transform: translateY(4px); }
-
-/* Pip track */
-.quiz-pips { display: flex; gap: .6rem; align-items: center; }
+/* Pips */
+.quiz-pips {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 24px 20px;
+}
 .pip {
-  width: 38px; height: 7px; border-radius: 4px;
-  background: rgba(26,34,51,.14);
-  transition: background .3s, transform .2s;
+  height: 5px;
+  flex: 1;
+  max-width: 80px;
+  border-radius: 3px;
+  background: var(--ink-3);
+  border: 1px solid var(--border);
+  transition: all 0.3s ease;
 }
-.pip.active       { background: var(--gold); transform: scaleY(1.4); }
-.pip.correct      { background: var(--correct); }
-.pip.wrong        { background: var(--wrong); }
-.pip.past-correct { background: var(--correct); opacity: .65; }
-.pip.past-wrong   { background: var(--wrong);   opacity: .65; }
+.pip-active {
+  background: var(--gold);
+  border-color: var(--gold);
+  transform: scaleY(1.6);
+}
+.pip-correct { background: var(--correct); border-color: var(--correct); }
+.pip-wrong { background: var(--wrong); border-color: var(--wrong); }
 
-/* ══════════════════════════════════════════════════════════ */
-/*  RESULT SCREEN                                             */
-/* ══════════════════════════════════════════════════════════ */
-.result-screen {
-  display: flex; align-items: center; justify-content: center;
-  z-index: 1; width: 100%; padding: 1rem;
-}
+/* ─── Result ─── */
 .result-card {
-  width: 100%; max-width: 440px;
-  background: var(--card-bg); border-radius: var(--radius); overflow: hidden;
-  box-shadow: 0 20px 60px var(--shadow), 0 4px 16px rgba(0,0,0,.08);
-  border: 1px solid rgba(26,34,51,.06);
+  width: 100%;
+  max-width: 480px;
+  background: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }
-.result-continent-banner {
-  display: flex; align-items: center; justify-content: center;
-  gap: .8rem; padding: 1.7rem 1.5rem; position: relative; overflow: hidden;
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(30px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
-.result-continent-banner::after {
-  content: ''; position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.15) 0%, transparent 65%);
+
+.result-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 28px;
 }
-.result-icon     { font-size: 2.2rem; line-height: 1; position: relative; z-index: 1; }
+.result-emoji { font-size: 36px; }
 .result-continent {
-  font-family: 'Playfair Display', serif;
-  font-size: 1.5rem; font-weight: 700; color: #fff;
-  text-shadow: 0 1px 6px rgba(0,0,0,.4); position: relative; z-index: 1;
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.3);
 }
+
 .result-body {
-  padding: 1.8rem 2rem 1.7rem;
-  display: flex; flex-direction: column; align-items: center; gap: .9rem;
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 }
-.result-headline {
-  font-family: 'Playfair Display', serif;
-  font-size: .9rem; font-weight: 600;
-  color: var(--dim); text-transform: uppercase; letter-spacing: .15em;
+
+.result-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--gold);
 }
-.result-stars { display: flex; gap: .3rem; }
+
+.stars-row { display: flex; gap: 10px; }
 .star {
-  font-size: 2rem; color: rgba(26,34,51,.12);
-  transition: color .3s, transform .3s;
+  font-size: 32px;
+  color: var(--ink-3);
+  filter: drop-shadow(0 0 0 transparent);
+  transition: all 0.3s ease;
 }
-.star.lit { color: var(--gold); transform: scale(1.12); }
-.result-score {
-  font-family: 'Playfair Display', serif;
-  font-size: 2.4rem; font-weight: 700; color: var(--ink); line-height: 1;
+.star.lit {
+  color: var(--gold);
+  filter: drop-shadow(0 0 8px rgba(245, 200, 66, 0.6));
 }
-.result-comment {
-  font-size: .88rem; color: var(--dim); text-align: center;
-  font-style: italic; line-height: 1.55; max-width: 280px;
+
+.score-display {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
-.result-pip-row { display: flex; gap: .5rem; margin-top: .15rem; }
+.score-number {
+  font-family: var(--font-display);
+  font-size: 72px;
+  font-weight: 700;
+  color: var(--text-h);
+  line-height: 1;
+}
+.score-slash {
+  font-size: 40px;
+  color: var(--text-dim);
+  font-weight: 300;
+}
+.score-total {
+  font-family: var(--font-display);
+  font-size: 40px;
+  color: var(--text-dim);
+  font-weight: 400;
+}
+
+.score-comment {
+  font-size: 15px;
+  color: var(--text-dim);
+  text-align: center;
+  font-style: italic;
+}
+
+.pip-results-row {
+  display: flex;
+  gap: 10px;
+}
 .result-pip {
-  width: 38px; height: 38px; border-radius: .45rem;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1rem; font-weight: 700;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
 }
-.result-pip.correct { background: var(--correct-bg); color: var(--correct); }
-.result-pip.wrong   { background: var(--wrong-bg);   color: var(--wrong); }
+.result-pip-correct {
+  background: var(--correct-bg);
+  border: 1.5px solid var(--correct);
+  color: var(--correct);
+}
+.result-pip-wrong {
+  background: var(--wrong-bg);
+  border: 1.5px solid var(--wrong);
+  color: var(--wrong);
+}
+
 .return-btn {
-  margin-top: .4rem;
-  padding: .75rem 2rem; border: 2px solid var(--ink); border-radius: .65rem;
-  background: var(--ink); color: var(--gold-lt);
-  font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: .95rem;
-  letter-spacing: .03em; cursor: pointer;
-  transition: background .18s, border-color .18s, transform .12s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 28px;
+  background: transparent;
+  border: 1.5px solid var(--gold-border);
+  border-radius: 10px;
+  color: var(--gold);
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  letter-spacing: 0.3px;
 }
 .return-btn:hover {
-  background: var(--teal); border-color: var(--teal);
+  background: var(--gold-dim);
+  border-color: var(--gold);
   transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(245, 200, 66, 0.15);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 768px) {
+  .app-header {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+  .app-main { padding: 24px 16px; }
+  .quiz-body { padding: 20px 16px 16px; }
+  .quiz-header { padding: 14px 16px; }
+  .quiz-pips { padding: 12px 16px 16px; }
+  .result-body { padding: 24px 20px; }
 }
 </style>
