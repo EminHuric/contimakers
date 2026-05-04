@@ -907,29 +907,39 @@ function t(key) {
 const translationCache = ref({})
 const isTranslating = ref(false)
 
+// MyMemory API — besplatno, bez kljuca, 5000 reci/dan
+const LANG_CODES = {
+  'English':   'en',
+  'Deutsch':   'de',
+  'Français':  'fr',
+  'Español':   'es',
+  'Italiano':  'it',
+  'Português': 'pt',
+  'Русский':   'ru',
+  '中文':       'zh',
+  '日本語':     'ja',
+  'العربية':   'ar',
+  'Türkçe':    'tr',
+  'Latviešu':  'lv',
+}
+
+async function translateOne(text, targetCode) {
+  const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=sr|${targetCode}`
+  const res = await fetch(url)
+  const data = await res.json()
+  return data.responseData?.translatedText || text
+}
+
 async function translateWithAPI(texts, targetLang) {
   const cacheKey = `${targetLang}:${texts.join('|||')}`
   if (translationCache.value[cacheKey]) return translationCache.value[cacheKey]
 
+  const targetCode = LANG_CODES[targetLang] || 'en'
+
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: `Translate the following geographic quiz question and answer options to ${targetLang}. Keep proper nouns, country names, and place names in their standard form for ${targetLang}. Return ONLY a JSON array of translated strings in the exact same order. No explanation, no markdown, no code fences:\n${JSON.stringify(texts)}`
-        }]
-      })
-    })
-    const data = await res.json()
-    const raw = data.content?.[0]?.text || '[]'
-    const clean = raw.replace(/```json|```/g, '').trim()
-    const result = JSON.parse(clean)
-    translationCache.value[cacheKey] = result
-    return result
+    const results = await Promise.all(texts.map(t => translateOne(t, targetCode)))
+    translationCache.value[cacheKey] = results
+    return results
   } catch (e) {
     console.error('Translation error:', e)
     return texts
