@@ -424,11 +424,17 @@
           </div>
           <div class="challenge-emoji">{{ currentChallenge.emoji }}</div>
           <p class="challenge-text">{{ currentChallenge.text }}</p>
-          <p class="challenge-hint">Uradi izazov i nastavi igru!</p>
-          <button class="btn-challenge-done" @click="challengeDone">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-            Završeno! Nastavi igru →
-          </button>
+          <p class="challenge-hint">Uradi izazov pred svima i nastavi igru!</p>
+          <div class="challenge-actions">
+            <button class="btn-challenge-skip" @click="endGame">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              Nisam uradio — Kraj
+            </button>
+            <button class="btn-challenge-done" @click="challengeDone">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Uradio sam! Nastavi →
+            </button>
+          </div>
         </div>
       </div>
     </Transition>
@@ -1251,66 +1257,46 @@ async function changeLang(code) {
 
 // ─── CHALLENGES ───────────────────────────────────────────────────────────────
 const allChallenges = [
-  { emoji: '🏋️', text: 'Uradi 10 čučnjeva!' },
+  { emoji: '😄', text: 'Ispričaj vic koji znaš — svi moraju da se nasmiju!' },
   { emoji: '🎤', text: 'Otpevaj prvih 15 sekundi omiljene pesme!' },
-  { emoji: '😂', text: 'Ispričaj vic koji znaš — svi moraju da se nasmiju!' },
-  { emoji: '🙌', text: 'Udeli kompliment osobi sa tvoje desne strane.' },
-  { emoji: '🤸', text: 'Uradi 10 skokova s raširenim rukama i nogama!' },
-  { emoji: '🦁', text: 'Imitiraj neku životinju — ostali moraju da pogode koja je!' },
-  { emoji: '😜', text: 'Napravi najsmiješniju grimasu i drži je 5 sekundi!' },
-  { emoji: '💃', text: 'Pleši 30 sekundi bez muzike!' },
-  { emoji: '🤖', text: 'Hodaj kao robot po sobi 15 sekundi!' },
-  { emoji: '👏', text: 'Zareci se da ćeš učiti geografiju — reci to naglas!' },
-  { emoji: '🧘', text: 'Ostani u položaju drveta (na jednoj nozi) 10 sekundi!' },
-  { emoji: '🎭', text: 'Odglumi da si poznati glumac — reci nešto dramatično!' },
-  { emoji: '👋', text: 'Pozdravi svakog igrača rukicom i reci im nešto lijepo!' },
-  { emoji: '🔄', text: 'Reci abecedu naglas što brže možeš!' },
-  { emoji: '🏃', text: 'Trči u mestu 20 sekundi što brže možeš!' },
-  { emoji: '😁', text: 'Nasmij nekog igrača bez pričanja — samo mimikom!' },
-  { emoji: '🤝', text: 'Stisnuti rukom i čestitaj susjedu za hrabrost!' },
-  { emoji: '🌟', text: 'Reci 3 stvari koje te čine posebnim!' },
-  { emoji: '🐸', text: 'Skači kao žaba 5 puta po sobi!' },
-  { emoji: '🧩', text: 'Reci tri naziva kontinenta bez gledanja u ekran!' },
-  { emoji: '🎯', text: 'Baci zamišljenu loptu i odigraj gol u vazduhu!' },
-  { emoji: '🤣', text: 'Pričaj 20 sekundi kao da si robot — bez emocija!' },
-  { emoji: '🌍', text: 'Imenuj 5 zemalja za 10 sekundi!' },
-  { emoji: '🦅', text: 'Razmahi rukama kao ptica i leti po sobi 10 sekundi!' },
-  { emoji: '💪', text: 'Uradi 5 sklekova — ili pokušaj!' },
-  { emoji: '🎪', text: 'Izvedi cirkuski trik — bilo koji koji znaš!' },
-  { emoji: '🙃', text: 'Reci kompliment sebi naglas, pred svima!' },
-  { emoji: '🏄', text: 'Imitiraj da jahaš talase 10 sekundi!' },
-  { emoji: '🎵', text: 'Napravi ritam pljeskajem i neka te ostali prate!' },
-  { emoji: '🤔', text: 'Reci glavne gradove 3 države koje ti padnu na pamet!' },
-  { emoji: '🐧', text: 'Hodaj kao pingvin do zida i nazad!' },
-  { emoji: '🌈', text: 'Naboj 7 boja duge za 5 sekundi!' },
-  { emoji: '🏆', text: 'Napravi pobjednički ples i proglasi se šampijonom!' },
-  { emoji: '🤸‍♂️', text: 'Dodirni prste na nogama bez savijanja koljena — 3 puta!' },
-  { emoji: '👀', text: 'Zatvor oči i uhvati imaginarni balon iz vazduha!' },
-  { emoji: '🎬', text: 'Reci rečenicu iz svog omiljenog filma!' },
-  { emoji: '🌊', text: 'Pravi zvuk talasa ustima 15 sekundi!' },
-  { emoji: '🦊', text: 'Pričaj kao lisica — izmisli šta bi lisica rekla geografu!' },
-  { emoji: '🤲', text: 'Drži dlani zajedno i stani na prste 10 sekundi!' },
-  { emoji: '🎃', text: 'Napravi najstrašniji izraz lica koji možeš!' },
-  { emoji: '🚀', text: 'Odbroji od 10 do 1 i odigraj lansiranje rakete!' },
-  { emoji: '🐍', text: 'Puzi po podu kao zmija do suprotnog zida i nazad!' },
-  { emoji: '🎉', text: 'Pravi zvuke slavlja — "HOORAY" 5 puta naglas!' },
-  { emoji: '🧠', text: 'Imenuj 3 reke i 3 planine bilo gdje u svetu!' },
-  { emoji: '🦴', text: 'Budi statua 10 sekundi — ni treptaj!' },
-  { emoji: '👃', text: 'Zatvori oči i pokušaj da dotakneš nos malim prstom 3 puta!' },
-  { emoji: '🌺', text: 'Zamišljaj da si cvijet koji cvjeta — napravi tu scenu!' },
-  { emoji: '🎸', text: 'Sviraj zamišljenu gitaru 15 sekundi!' },
-  { emoji: '🦒', text: 'Hodaj kao žirafa — teret na glavi zamišljaj!' },
-  { emoji: '🌙', text: 'Recituj nešto što znaš napamet — pjesmu, izreku, reklamu!' },
-  { emoji: '🤡', text: 'Napravi balon od imaginarnih materijala i "napuhaj" ga!' },
-  { emoji: '🐻', text: 'Imitiraj medvjeda koji traži med 10 sekundi!' },
-  { emoji: '🎲', text: 'Smisli i reci šalu o geografiji!' },
-  { emoji: '🌵', text: 'Stoj nepomično kao kaktus — 15 sekundi!' },
-  { emoji: '🦋', text: 'Leptirasto mahaj rukama dok hodaš po sobi!' },
-  { emoji: '🎓', text: 'Drži zamišljeni govor kao predsjednik jedne minute!' },
-  { emoji: '🌞', text: 'Osmijeh što širi možeš — i drži ga 10 sekundi!' },
-  { emoji: '🦘', text: 'Skači kao kengur 8 puta kroz sobu!' },
-  { emoji: '🧲', text: 'Imitiraj magnet — privlači ljude gestama!' },
-  { emoji: '🍕', text: 'Napravi zamišljenu picu i ponudi je svim igračima!' },
+  { emoji: '🌍', text: 'Nabrojati 5 glavnih gradova evropskih zemalja za 20 sekundi!' },
+  { emoji: '💬', text: 'Udeli iskreni kompliment svakom igraču za stolom.' },
+  { emoji: '🧠', text: 'Imenuj 5 zemalja u Africi za 15 sekundi!' },
+  { emoji: '🗺️', text: 'Opiši neku državu bez imenovanja — ostali pogađaju!' },
+  { emoji: '📢', text: 'Drži govor o najzanimljivijoj zemlji na svetu — 30 sekundi!' },
+  { emoji: '🏔️', text: 'Imenuj 4 planinska lanca s različitih kontinenata!' },
+  { emoji: '🌊', text: 'Imenuj 4 najveća okeana i jedan zanimljiv podatak o jednom od njih!' },
+  { emoji: '🗣️', text: 'Reci "Zdravo, kako si?" na 4 različita jezika!' },
+  { emoji: '🧭', text: 'Imenuj 3 reke koje teku kroz više od jedne države!' },
+  { emoji: '✈️', text: 'Reci 5 poznatih turističkih destinacija u Aziji!' },
+  { emoji: '🏛️', text: 'Imenuj 3 svjetska nasljeđa UNESCO-a!' },
+  { emoji: '📖', text: 'Ispričaj zanimljivost o nekoj zemlji koju malo ko zna!' },
+  { emoji: '🎭', text: 'Imitiraj poznatog svjetskog vođu ili istorijsku ličnost — ostali pogađaju ko je!' },
+  { emoji: '💡', text: 'Navedi 3 izuma ili pronalaska koji su promijenili svijet i državu iz koje dolaze!' },
+  { emoji: '🎯', text: 'Imenuj 5 zemalja čija zastava ima zvijezdu na njoj!' },
+  { emoji: '🤝', text: 'Rukuj se sa svim igračima i svakom reci jednu pozitivnu stvar.' },
+  { emoji: '🌐', text: 'Objasni razliku između kontinenta i države — u jednoj rečenici!' },
+  { emoji: '🎵', text: 'Otpevaj himnu ili prepoznatljiv dio muzike neke zemlje — ostali pogađaju!' },
+  { emoji: '📊', text: 'Imenuj 3 najmnogoljudnija grada na svijetu!' },
+  { emoji: '🏆', text: 'Reci ko je bio domaćin posljednja tri Olimpijska igra i u kojim gradovima!' },
+  { emoji: '🔤', text: 'Imenuj što više zemalja koje počinju na slovo "K" — imaš 20 sekundi!' },
+  { emoji: '🌴', text: 'Nabrojati 4 države koje se nalaze na otocima!' },
+  { emoji: '🎓', text: 'Objasni zašto je geografija važna u modernom životu — imaš 30 sekundi!' },
+  { emoji: '🌺', text: 'Reci koji je nacionalni simbol (biljka ili životinja) tri različite države!' },
+  { emoji: '🧩', text: 'Koji kontinent nema nijedne države? Objasni nešto o njemu!' },
+  { emoji: '⚽', text: 'Imenuj 4 države koje su bile domaćini FIFA Svjetskog Kupa!' },
+  { emoji: '🗼', text: 'Imenuj 5 čuvenih arhitektonskih čuda i u kojim se zemljama nalaze!' },
+  { emoji: '💰', text: 'Reci valute 4 različite evropske države!' },
+  { emoji: '📍', text: 'Koji grad ima više stanovnika — Kairo ili Lagos? Pogodi i objasni zašto!' },
+  { emoji: '🤓', text: 'Imenuj 3 nobelovca i iz koje su države!' },
+  { emoji: '🌋', text: 'Imenuj 3 poznata vulkana i na kom su kontinentu!' },
+  { emoji: '🧊', text: 'Koja je jedina država u potpunosti na Arktičkom krugu? Imaš jedan pokušaj!' },
+  { emoji: '🦁', text: 'Nabrojati 4 afričke države po sjećanju, bez ponavljanja!' },
+  { emoji: '🏙️', text: 'Imenuj 3 prijestolnice koje NISU najveći grad te države!' },
+  { emoji: '🌞', text: 'Koja je zemlja poznata po najvećem broju sunčanih sati? Obrazloži!' },
+  { emoji: '🤔', text: 'Koja dva kontinenta dijele isti kopneni masiv? (Euroazija) — objasni!' },
+  { emoji: '🎪', text: 'Napravi kratku prezentaciju o jednoj državi — samo gestama, bez riječi!' },
+  { emoji: '🔢', text: 'Koliko država ima Južna Amerika? Pokušaj da ih sve imenuje!' },
 ]
 
 const showWrongModal = ref(false)
@@ -2698,21 +2684,53 @@ body {
   font-style: italic;
 }
 
+.challenge-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.btn-challenge-skip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 13px 20px;
+  background: transparent;
+  border: 1.5px solid rgba(248,81,73,0.5);
+  border-radius: 13px;
+  color: #f85149;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex: 1;
+  justify-content: center;
+  min-width: 140px;
+}
+.btn-challenge-skip svg { width: 15px; height: 15px; }
+.btn-challenge-skip:hover { background: rgba(248,81,73,0.12); transform: translateY(-2px); }
+
 .btn-challenge-done {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 28px;
+  padding: 13px 22px;
   background: var(--gold);
   border: none;
   border-radius: 13px;
   color: #000;
   font-family: 'DM Sans', sans-serif;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.25s ease;
-  margin-top: 4px;
+  flex: 1;
+  justify-content: center;
+  min-width: 150px;
 }
 .btn-challenge-done svg { width: 18px; height: 18px; }
 .btn-challenge-done:hover { opacity: 0.85; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(245,200,66,0.5); }
