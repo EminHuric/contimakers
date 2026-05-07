@@ -394,6 +394,45 @@
       </div>
     </Transition>
 
+    <!-- ░░░░░░░░░░░░░░ WRONG ANSWER MODAL ░░░░░░░░░░░░░░ -->
+    <Transition name="modal-fade">
+      <div v-if="showWrongModal" class="modal-overlay" @click.self="null">
+        <div class="modal-card">
+          <div class="modal-icon">😬</div>
+          <h2 class="modal-title">Nažalost, odgovor nije tačan!</h2>
+          <p class="modal-body">Ako želite da nastavite igru, potrebno je da uradite <strong>izazov</strong>. U suprotnom ispadate iz igre.</p>
+          <div class="modal-actions">
+            <button class="btn-end-game" @click="endGame">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+              Kraj igre
+            </button>
+            <button class="btn-do-challenge" @click="openChallenge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              Uradi izazov!
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ░░░░░░░░░░░░░░ CHALLENGE CARD ░░░░░░░░░░░░░░ -->
+    <Transition name="challenge-pop">
+      <div v-if="showChallengeCard" class="modal-overlay" @click.self="null">
+        <div class="challenge-card">
+          <div class="challenge-header">
+            <span class="challenge-badge">⚡ IZAZOV</span>
+          </div>
+          <div class="challenge-emoji">{{ currentChallenge.emoji }}</div>
+          <p class="challenge-text">{{ currentChallenge.text }}</p>
+          <p class="challenge-hint">Uradi izazov i nastavi igru!</p>
+          <button class="btn-challenge-done" @click="challengeDone">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+            Završeno! Nastavi igru →
+          </button>
+        </div>
+      </div>
+    </Transition>
+
     <!-- ░░░░░░░░░░░░░░ RESULT SCREEN ░░░░░░░░░░░░░░ -->
     <Transition name="page">
       <div v-if="phase === 'result'" class="main-root" key="result">
@@ -1068,6 +1107,9 @@ async function startQuiz() {
   currentIndex.value = 0
   score.value = 0
   pipResults.value = new Array(picked.length).fill(null)
+  showWrongModal.value = false
+  showChallengeCard.value = false
+  usedChallengeIndices.value = []
   await loadQuestion()
   phase.value = 'quiz'
 }
@@ -1116,7 +1158,12 @@ function selectAnswer(option) {
   answered.value = true
   isCorrect.value = option === translatedCorrect.value
   pipResults.value[currentIndex.value] = isCorrect.value
-  if (isCorrect.value) score.value++
+  if (isCorrect.value) {
+    score.value++
+  } else {
+    // Show challenge modal on wrong answer
+    setTimeout(() => { showWrongModal.value = true }, 800)
+  }
 }
 
 async function nextQuestion() {
@@ -1200,6 +1247,109 @@ function continentStyle(name) {
 async function changeLang(code) {
   currentLang.value = code
   if (phase.value === 'quiz') await loadQuestion()
+}
+
+// ─── CHALLENGES ───────────────────────────────────────────────────────────────
+const allChallenges = [
+  { emoji: '🏋️', text: 'Uradi 10 čučnjeva!' },
+  { emoji: '🎤', text: 'Otpevaj prvih 15 sekundi omiljene pesme!' },
+  { emoji: '😂', text: 'Ispričaj vic koji znaš — svi moraju da se nasmiju!' },
+  { emoji: '🙌', text: 'Udeli kompliment osobi sa tvoje desne strane.' },
+  { emoji: '🤸', text: 'Uradi 10 skokova s raširenim rukama i nogama!' },
+  { emoji: '🦁', text: 'Imitiraj neku životinju — ostali moraju da pogode koja je!' },
+  { emoji: '😜', text: 'Napravi najsmiješniju grimasu i drži je 5 sekundi!' },
+  { emoji: '💃', text: 'Pleši 30 sekundi bez muzike!' },
+  { emoji: '🤖', text: 'Hodaj kao robot po sobi 15 sekundi!' },
+  { emoji: '👏', text: 'Zareci se da ćeš učiti geografiju — reci to naglas!' },
+  { emoji: '🧘', text: 'Ostani u položaju drveta (na jednoj nozi) 10 sekundi!' },
+  { emoji: '🎭', text: 'Odglumi da si poznati glumac — reci nešto dramatično!' },
+  { emoji: '👋', text: 'Pozdravi svakog igrača rukicom i reci im nešto lijepo!' },
+  { emoji: '🔄', text: 'Reci abecedu naglas što brže možeš!' },
+  { emoji: '🏃', text: 'Trči u mestu 20 sekundi što brže možeš!' },
+  { emoji: '😁', text: 'Nasmij nekog igrača bez pričanja — samo mimikom!' },
+  { emoji: '🤝', text: 'Stisnuti rukom i čestitaj susjedu za hrabrost!' },
+  { emoji: '🌟', text: 'Reci 3 stvari koje te čine posebnim!' },
+  { emoji: '🐸', text: 'Skači kao žaba 5 puta po sobi!' },
+  { emoji: '🧩', text: 'Reci tri naziva kontinenta bez gledanja u ekran!' },
+  { emoji: '🎯', text: 'Baci zamišljenu loptu i odigraj gol u vazduhu!' },
+  { emoji: '🤣', text: 'Pričaj 20 sekundi kao da si robot — bez emocija!' },
+  { emoji: '🌍', text: 'Imenuj 5 zemalja za 10 sekundi!' },
+  { emoji: '🦅', text: 'Razmahi rukama kao ptica i leti po sobi 10 sekundi!' },
+  { emoji: '💪', text: 'Uradi 5 sklekova — ili pokušaj!' },
+  { emoji: '🎪', text: 'Izvedi cirkuski trik — bilo koji koji znaš!' },
+  { emoji: '🙃', text: 'Reci kompliment sebi naglas, pred svima!' },
+  { emoji: '🏄', text: 'Imitiraj da jahaš talase 10 sekundi!' },
+  { emoji: '🎵', text: 'Napravi ritam pljeskajem i neka te ostali prate!' },
+  { emoji: '🤔', text: 'Reci glavne gradove 3 države koje ti padnu na pamet!' },
+  { emoji: '🐧', text: 'Hodaj kao pingvin do zida i nazad!' },
+  { emoji: '🌈', text: 'Naboj 7 boja duge za 5 sekundi!' },
+  { emoji: '🏆', text: 'Napravi pobjednički ples i proglasi se šampijonom!' },
+  { emoji: '🤸‍♂️', text: 'Dodirni prste na nogama bez savijanja koljena — 3 puta!' },
+  { emoji: '👀', text: 'Zatvor oči i uhvati imaginarni balon iz vazduha!' },
+  { emoji: '🎬', text: 'Reci rečenicu iz svog omiljenog filma!' },
+  { emoji: '🌊', text: 'Pravi zvuk talasa ustima 15 sekundi!' },
+  { emoji: '🦊', text: 'Pričaj kao lisica — izmisli šta bi lisica rekla geografu!' },
+  { emoji: '🤲', text: 'Drži dlani zajedno i stani na prste 10 sekundi!' },
+  { emoji: '🎃', text: 'Napravi najstrašniji izraz lica koji možeš!' },
+  { emoji: '🚀', text: 'Odbroji od 10 do 1 i odigraj lansiranje rakete!' },
+  { emoji: '🐍', text: 'Puzi po podu kao zmija do suprotnog zida i nazad!' },
+  { emoji: '🎉', text: 'Pravi zvuke slavlja — "HOORAY" 5 puta naglas!' },
+  { emoji: '🧠', text: 'Imenuj 3 reke i 3 planine bilo gdje u svetu!' },
+  { emoji: '🦴', text: 'Budi statua 10 sekundi — ni treptaj!' },
+  { emoji: '👃', text: 'Zatvori oči i pokušaj da dotakneš nos malim prstom 3 puta!' },
+  { emoji: '🌺', text: 'Zamišljaj da si cvijet koji cvjeta — napravi tu scenu!' },
+  { emoji: '🎸', text: 'Sviraj zamišljenu gitaru 15 sekundi!' },
+  { emoji: '🦒', text: 'Hodaj kao žirafa — teret na glavi zamišljaj!' },
+  { emoji: '🌙', text: 'Recituj nešto što znaš napamet — pjesmu, izreku, reklamu!' },
+  { emoji: '🤡', text: 'Napravi balon od imaginarnih materijala i "napuhaj" ga!' },
+  { emoji: '🐻', text: 'Imitiraj medvjeda koji traži med 10 sekundi!' },
+  { emoji: '🎲', text: 'Smisli i reci šalu o geografiji!' },
+  { emoji: '🌵', text: 'Stoj nepomično kao kaktus — 15 sekundi!' },
+  { emoji: '🦋', text: 'Leptirasto mahaj rukama dok hodaš po sobi!' },
+  { emoji: '🎓', text: 'Drži zamišljeni govor kao predsjednik jedne minute!' },
+  { emoji: '🌞', text: 'Osmijeh što širi možeš — i drži ga 10 sekundi!' },
+  { emoji: '🦘', text: 'Skači kao kengur 8 puta kroz sobu!' },
+  { emoji: '🧲', text: 'Imitiraj magnet — privlači ljude gestama!' },
+  { emoji: '🍕', text: 'Napravi zamišljenu picu i ponudi je svim igračima!' },
+]
+
+const showWrongModal = ref(false)
+const showChallengeCard = ref(false)
+const currentChallenge = ref({ emoji: '', text: '' })
+const usedChallengeIndices = ref([])
+
+function pickChallenge() {
+  const available = allChallenges
+    .map((_, i) => i)
+    .filter(i => !usedChallengeIndices.value.includes(i))
+
+  if (available.length === 0) {
+    // Reset if all used
+    usedChallengeIndices.value = []
+    return pickChallenge()
+  }
+
+  const randIdx = available[Math.floor(Math.random() * available.length)]
+  usedChallengeIndices.value.push(randIdx)
+  currentChallenge.value = allChallenges[randIdx]
+}
+
+function openChallenge() {
+  pickChallenge()
+  showWrongModal.value = false
+  showChallengeCard.value = true
+}
+
+function endGame() {
+  showWrongModal.value = false
+  showChallengeCard.value = false
+  phase.value = 'selection'
+  buildCardDeck()
+}
+
+function challengeDone() {
+  showChallengeCard.value = false
+  nextQuestion()
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
@@ -2370,9 +2520,210 @@ body {
 .btn-login:hover { opacity: 0.85; transform: translateY(-2px); box-shadow: 0 6px 24px var(--gold-glow); }
 .btn-login:active { transform: translateY(0); }
 
-@media (max-width: 480px) {
-  .login-card { padding: 32px 20px; }
-  .login-lang-name { display: none; }
-  .login-lang-btn { padding: 7px 10px; }
+/* ─────────────────────────────────────
+   WRONG ANSWER MODAL
+───────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
+
+.modal-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-med);
+  border-radius: 28px;
+  padding: 40px 32px 36px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.modal-icon {
+  font-size: 56px;
+  line-height: 1;
+  animation: modal-bounce 0.6s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+@keyframes modal-bounce {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+.modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--wrong);
+  line-height: 1.3;
+}
+
+.modal-body {
+  font-size: 15px;
+  color: var(--text);
+  line-height: 1.6;
+  max-width: 340px;
+}
+
+.modal-body strong {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-end-game {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 22px;
+  background: transparent;
+  border: 1.5px solid var(--wrong-border);
+  border-radius: 13px;
+  color: var(--wrong);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex: 1;
+  justify-content: center;
+  min-width: 130px;
+}
+.btn-end-game svg { width: 16px; height: 16px; }
+.btn-end-game:hover { background: var(--wrong-bg); transform: translateY(-2px); }
+
+.btn-do-challenge {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 12px 22px;
+  background: var(--gold);
+  border: 1.5px solid var(--gold);
+  border-radius: 13px;
+  color: #000;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  flex: 1;
+  justify-content: center;
+  min-width: 150px;
+}
+.btn-do-challenge svg { width: 16px; height: 16px; }
+.btn-do-challenge:hover { opacity: 0.85; transform: translateY(-2px); box-shadow: 0 6px 24px var(--gold-glow); }
+
+/* ─────────────────────────────────────
+   CHALLENGE CARD
+───────────────────────────────────── */
+.challenge-card {
+  width: 100%;
+  max-width: 420px;
+  background: linear-gradient(145deg, #1a0a2e, #2d1060);
+  border: 1.5px solid rgba(245,200,66,0.35);
+  border-radius: 28px;
+  padding: 40px 32px 36px;
+  box-shadow: 0 0 60px rgba(245,200,66,0.15), var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  text-align: center;
+  animation: challenge-pop-in 0.55s cubic-bezier(0.34,1.56,0.64,1) both;
+}
+
+@keyframes challenge-pop-in {
+  from { transform: scale(0.5) rotate(-8deg); opacity: 0; }
+  to   { transform: scale(1)   rotate(0deg);  opacity: 1; }
+}
+
+.challenge-header {
+  width: 100%;
+}
+
+.challenge-badge {
+  display: inline-block;
+  background: var(--gold);
+  color: #000;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  padding: 5px 14px;
+  border-radius: 20px;
+}
+
+.challenge-emoji {
+  font-size: 72px;
+  line-height: 1;
+  animation: emoji-spin 0.7s cubic-bezier(0.34,1.56,0.64,1) both 0.15s;
+}
+
+@keyframes emoji-spin {
+  from { transform: scale(0.3) rotate(-30deg); opacity: 0; }
+  to   { transform: scale(1)   rotate(0deg);   opacity: 1; }
+}
+
+.challenge-text {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.45;
+  max-width: 320px;
+}
+
+.challenge-hint {
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  font-style: italic;
+}
+
+.btn-challenge-done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 28px;
+  background: var(--gold);
+  border: none;
+  border-radius: 13px;
+  color: #000;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  margin-top: 4px;
+}
+.btn-challenge-done svg { width: 18px; height: 18px; }
+.btn-challenge-done:hover { opacity: 0.85; transform: translateY(-2px); box-shadow: 0 6px 24px rgba(245,200,66,0.5); }
+
+/* Modal transitions */
+.modal-fade-enter-active { transition: opacity 0.3s ease; }
+.modal-fade-leave-active { transition: opacity 0.25s ease; }
+.modal-fade-enter-from, .modal-fade-leave-to { opacity: 0; }
+
+.challenge-pop-enter-active { transition: opacity 0.35s ease; }
+.challenge-pop-leave-active { transition: opacity 0.25s ease; }
+.challenge-pop-enter-from, .challenge-pop-leave-to { opacity: 0; }
+
 </style>
