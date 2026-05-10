@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "google-translate-api-x": "^10.7.2",
     "vue": "^3.5.32"
   },
   "devDependencies": {
