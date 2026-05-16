@@ -284,7 +284,7 @@
                       {{ isCorrect ? t('correct') : t('wrongAnswer') + ' ' + translatedCorrect }}
                     </span>
                   </div>
-                  <button class="btn-next" @click="nextQuestion">
+                  <button class="btn-next" @click="isCorrect ? openPuzzle() : nextQuestion()">
                     {{ currentIndex < roundQuestions.length - 1 ? t('next') : t('seeResults') }}
                     <span>→</span>
                   </button>
@@ -343,6 +343,93 @@
               {{ t('challengeDone') }}
             </button>
           </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ░░ PUZZLE / SLAGALICA ░░ -->
+    <Transition name="modal-fade">
+      <div v-if="showPuzzleModal" class="modal-overlay puzzle-overlay">
+        <div class="puzzle-card">
+          <!-- Header -->
+          <div class="puzzle-header">
+            <span class="puzzle-badge">🧩 {{ t('puzzleLabel') }}</span>
+            <span class="puzzle-continent-name">{{ translateContinent(activeContinent) }}</span>
+          </div>
+
+          <!-- Progress dots -->
+          <div class="puzzle-progress-row">
+            <span class="puzzle-progress-label">{{ t('puzzleProgress') }}</span>
+            <div class="puzzle-dots">
+              <div v-for="i in 4" :key="i" class="puzzle-dot"
+                :class="{ placed: puzzlePlacedSlots[i-1], target: (i-1) === puzzleTargetSlot && !puzzlePlacedSlots[i-1] }">
+              </div>
+            </div>
+          </div>
+
+          <!-- Continent board: 2x2 grid -->
+          <div class="puzzle-board">
+            <div class="puzzle-grid">
+              <div v-for="slotIdx in [0,1,2,3]" :key="slotIdx"
+                class="puzzle-cell"
+                :class="{
+                  'cell-placed':  puzzlePlacedSlots[slotIdx] || (slotIdx === puzzleTargetSlot && puzzleCorrect === true),
+                  'cell-target':  slotIdx === puzzleTargetSlot && !puzzlePlacedSlots[slotIdx] && puzzleCorrect === null,
+                  'cell-success': slotIdx === puzzleTargetSlot && puzzleCorrect === true,
+                  'cell-empty':   !puzzlePlacedSlots[slotIdx] && slotIdx !== puzzleTargetSlot,
+                }">
+                <!-- Filled piece (already placed or just correctly placed) -->
+                <svg v-if="puzzlePlacedSlots[slotIdx] || (slotIdx === puzzleTargetSlot && puzzleCorrect === true)"
+                  :viewBox="quadrantViewBox(slotIdx)" class="cell-svg" preserveAspectRatio="xMidYMid meet">
+                  <path :d="continentPaths[activeContinent]" :fill="continentColors[activeContinent]"
+                    stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linejoin="round"/>
+                </svg>
+                <!-- Target slot (empty, pulsing) -->
+                <div v-else-if="slotIdx === puzzleTargetSlot" class="cell-question">
+                  <div class="cell-q-mark">?</div>
+                </div>
+                <!-- Other empty slots (grayed outline only) -->
+                <svg v-else :viewBox="quadrantViewBox(slotIdx)" class="cell-svg cell-ghost" preserveAspectRatio="xMidYMid meet">
+                  <path :d="continentPaths[activeContinent]" fill="none"
+                    stroke="var(--border)" stroke-width="1.5" stroke-dasharray="5,4" stroke-linejoin="round" opacity="0.4"/>
+                </svg>
+              </div>
+            </div>
+            <!-- Divider lines overlay -->
+            <div class="puzzle-divider-h"></div>
+            <div class="puzzle-divider-v"></div>
+          </div>
+
+          <!-- Instruction -->
+          <p class="puzzle-instruction">{{ t('puzzleInstruction') }}</p>
+
+          <!-- Piece options -->
+          <div class="puzzle-pieces">
+            <button v-for="pieceIdx in puzzleShuffledPieces" :key="pieceIdx"
+              class="puzzle-piece-btn"
+              :class="{
+                'piece-selected': puzzleSelectedPiece === pieceIdx && puzzleCorrect === null,
+                'piece-correct':  puzzleCorrect === true  && pieceIdx === puzzleTargetSlot,
+                'piece-wrong':    puzzleCorrect === false && puzzleSelectedPiece === pieceIdx,
+                'piece-reveal':   puzzleCorrect !== null  && pieceIdx === puzzleTargetSlot && puzzleSelectedPiece !== pieceIdx,
+              }"
+              :disabled="puzzleCorrect !== null"
+              @click="selectPuzzlePiece(pieceIdx)">
+              <svg :viewBox="quadrantViewBox(pieceIdx)" class="piece-svg" preserveAspectRatio="xMidYMid meet">
+                <path :d="continentPaths[activeContinent]" :fill="continentColors[activeContinent]"
+                  stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+              <span class="piece-label">{{ getPieceLabel(pieceIdx) }}</span>
+            </button>
+          </div>
+
+          <!-- Feedback message -->
+          <Transition name="fb-slide">
+            <div v-if="puzzleCorrect !== null" class="puzzle-feedback"
+              :class="puzzleCorrect ? 'pf-ok' : 'pf-err'">
+              <span>{{ puzzleCorrect ? t('puzzleSuccess') : '❌ ' + t('wrongAnswer') }}</span>
+            </div>
+          </Transition>
         </div>
       </div>
     </Transition>
@@ -469,6 +556,11 @@ const uiStrings = {
     challengeHint: 'Complete the challenge in front of everyone and continue!',
     challengeSkip: 'I didn\'t do it — End',
     challengeDone: 'Done! Continue →',
+    puzzleLabel: 'PUZZLE',
+    puzzleInstruction: 'Choose the piece that fits the missing spot!',
+    puzzleSuccess: 'Perfect! Piece placed! 🎉',
+    pieceNW: 'Northwest', pieceNE: 'Northeast', pieceSW: 'Southwest', pieceSE: 'Southeast',
+    puzzleProgress: 'Continent Assembly',
     continents: {
       Europa: 'Europe',
       Azija: 'Asia',
@@ -510,6 +602,11 @@ const uiStrings = {
     challengeHint: 'Uradi izazov pred svima i nastavi igru!',
     challengeSkip: 'Nisam uradio — Kraj',
     challengeDone: 'Uradio sam! Nastavi →',
+    puzzleLabel: 'SLAGALICA',
+    puzzleInstruction: 'Izaberi deo koji odgovara praznom mjestu!',
+    puzzleSuccess: 'Tačno! Deo postavljen! 🎉',
+    pieceNW: 'Sjeverozapad', pieceNE: 'Sjeveroistok', pieceSW: 'Jugozapad', pieceSE: 'Jugoistok',
+    puzzleProgress: 'Sklapanje kontinenta',
     continents: {
       Europa: 'Evropa',
       Azija: 'Azija',
@@ -551,6 +648,11 @@ const uiStrings = {
     challengeHint: 'Выполни испытание перед всеми и продолжай!',
     challengeSkip: 'Не сделал — Конец',
     challengeDone: 'Сделал! Продолжить →',
+    puzzleLabel: 'ПАЗЛ',
+    puzzleInstruction: 'Выбери кусок, который подходит на пустое место!',
+    puzzleSuccess: 'Верно! Кусок установлен! 🎉',
+    pieceNW: 'Северо-запад', pieceNE: 'Северо-восток', pieceSW: 'Юго-запад', pieceSE: 'Юго-восток',
+    puzzleProgress: 'Сборка континента',
     continents: {
       Europa: 'Европа',
       Azija: 'Азия',
@@ -592,6 +694,11 @@ const uiStrings = {
     challengeHint: 'Meydan okumayı herkesin önünde tamamla ve devam et!',
     challengeSkip: 'Yapmadım — Bitti',
     challengeDone: 'Yaptım! Devam Et →',
+    puzzleLabel: 'BULMACA',
+    puzzleInstruction: 'Boş yere uyan parçayı seç!',
+    puzzleSuccess: 'Harika! Parça yerleştirildi! 🎉',
+    pieceNW: 'Kuzeybatı', pieceNE: 'Kuzeydoğu', pieceSW: 'Güneybatı', pieceSE: 'Güneydoğu',
+    puzzleProgress: 'Kıta Birleştirme',
     continents: {
       Europa: 'Avrupa',
       Azija: 'Asya',
@@ -633,6 +740,11 @@ const uiStrings = {
     challengeHint: 'Izpildi izaicinājumu visu priekšā un turpini!',
     challengeSkip: 'Neizdarīju — Beigas',
     challengeDone: 'Izdarīju! Turpināt →',
+    puzzleLabel: 'MĪKLA',
+    puzzleInstruction: 'Izvēlies gabalu, kas der tukšajai vietai!',
+    puzzleSuccess: 'Pareizi! Gabals novietots! 🎉',
+    pieceNW: 'Ziemeļrietumi', pieceNE: 'Ziemeļaustrumi', pieceSW: 'Dienvidrietumi', pieceSE: 'Dienvidaustrumi',
+    puzzleProgress: 'Kontinenta Saliekšana',
     continents: {
       Europa: 'Eiropa',
       Azija: 'Āzija',
@@ -754,6 +866,9 @@ function startQuiz() {
   showChallengeCard.value    = false
   usedChallengeIndices.value = []
   currentChallengeIndex.value = -1
+  puzzlePlacedSlots.value    = [false, false, false, false]
+  puzzleCorrect.value        = null
+  showPuzzleModal.value      = false
   loadQuestion()
   phase.value = 'quiz'
 }
@@ -807,12 +922,7 @@ function selectAnswer(option) {
 }
 
 function nextQuestion() {
-  if (currentIndex.value < roundQuestions.value.length - 1) {
-    currentIndex.value++
-    loadQuestion()
-  } else {
-    phase.value = 'result'
-  }
+  advanceQuestion()
 }
 
 function returnToMap()   { phase.value = 'selection'; buildCardDeck() }
@@ -1120,10 +1230,415 @@ function pickChallenge() {
 
 function openChallenge() { pickChallenge(); showWrongModal.value = false; showChallengeCard.value = true }
 function endGame()       { showWrongModal.value = false; showChallengeCard.value = false; phase.value = 'selection'; buildCardDeck() }
-function challengeDone() { showChallengeCard.value = false; nextQuestion() }
+function challengeDone() { showChallengeCard.value = false; advanceQuestion() }
+
+// ─── PUZZLE / SLAGALICA STATE ─────────────────────────────────────────────────
+const showPuzzleModal      = ref(false)
+const puzzlePlacedSlots    = ref([false, false, false, false])
+const puzzleTargetSlot     = ref(0)
+const puzzleShuffledPieces = ref([0, 1, 2, 3])
+const puzzleSelectedPiece  = ref(null)
+const puzzleCorrect        = ref(null)
+
+// Simplified SVG continent paths in a 200 x 150 coordinate space.
+// Each path is kept inside the bounding box so quadrant clipping works cleanly.
+const continentPaths = {
+  'Europa': [
+    'M 62 22', 'L 80 12', 'L 100 9',  'L 120 11', 'L 140 9',
+    'L 155 19', 'L 163 34', 'L 165 50', 'L 158 65',
+    'L 148 76', 'L 132 84', 'L 112 88', 'L 92 88',
+    'L 72 83',  'L 52 73',  'L 38 60',  'L 31 46',
+    'L 34 32',  'L 45 23',  'Z',
+  ].join(' '),
+
+  'Azija': [
+    'M 18 20', 'L 55 9',  'L 100 5', 'L 148 9',  'L 182 22',
+    'L 194 44', 'L 190 70', 'L 178 94', 'L 162 112',
+    'L 135 124', 'L 108 129', 'L 80 124', 'L 55 110',
+    'L 32 90',  'L 12 65',  'L 10 40',  'Z',
+    // Indian sub-continent bump
+    'M 120 100', 'L 130 112', 'L 120 128', 'L 105 130',
+    'L 95 125',  'L 105 112', 'Z',
+  ].join(' '),
+
+  'Afrika': [
+    'M 60 14', 'L 95 10',  'L 130 12', 'L 152 26',
+    'L 164 50', 'L 167 78', 'L 162 106',
+    'L 148 124', 'L 126 138', 'L 100 142',
+    'L 74 138',  'L 52 124',  'L 36 106',
+    'L 30 78',   'L 32 50',   'L 44 28',  'Z',
+  ].join(' '),
+
+  'Severna Amerika': [
+    'M 28 14', 'L 72 8',  'L 112 10', 'L 152 18',
+    'L 175 34', 'L 180 56', 'L 170 78',
+    'L 155 94', 'L 132 107', 'L 108 111',
+    'L 85 107',  'L 65 94',   'L 48 78',
+    'L 36 60',   'L 26 42',   'L 28 28',  'Z',
+    // Florida / Mexico tab
+    'M 110 105', 'L 118 114', 'L 112 122', 'L 104 118', 'L 105 108', 'Z',
+  ].join(' '),
+
+  'Južna Amerika': [
+    'M 68 14', 'L 108 10', 'L 136 18',
+    'L 156 34', 'L 162 58', 'L 158 82',
+    'L 148 105', 'L 130 122', 'L 108 135',
+    'L 85 135',  'L 62 122',  'L 46 102',
+    'L 40 78',   'L 44 52',   'L 54 32',  'Z',
+  ].join(' '),
+
+  'Australija': [
+    'M 28 36', 'L 68 22', 'L 118 18', 'L 158 24',
+    'L 178 40', 'L 180 64', 'L 172 88',
+    'L 155 108', 'L 128 118', 'L 96 120',
+    'L 65 115',  'L 38 100',  'L 18 78',
+    'L 18 52',   'Z',
+    // Tasmania
+    'M 108 122', 'L 118 124', 'L 116 134', 'L 106 133', 'Z',
+  ].join(' '),
+}
+
+const continentColors = {
+  'Europa':          '#3f51b5',
+  'Azija':           '#e53935',
+  'Afrika':          '#fb8c00',
+  'Severna Amerika': '#43a047',
+  'Južna Amerika':   '#00acc1',
+  'Australija':      '#f4511e',
+}
+
+// viewBox for each of the 4 quadrant slots (in 200x150 space)
+function quadrantViewBox(slotIdx) {
+  return ['0 0 100 75', '100 0 100 75', '0 75 100 75', '100 75 100 75'][slotIdx]
+}
+
+// Piece label: NW / NE / SW / SE in the active language
+const pieceLabelKeys = ['pieceNW', 'pieceNE', 'pieceSW', 'pieceSE']
+function getPieceLabel(idx) { return t(pieceLabelKeys[idx]) }
+
+// Puzzle functions
+function openPuzzle() {
+  // If isCorrect is false, just advance (wrong-path "Next")
+  if (!isCorrect.value) { advanceQuestion(); return }
+
+  // Find an unfilled slot
+  const empty = puzzlePlacedSlots.value
+    .map((v, i) => (v ? null : i)).filter(i => i !== null)
+
+  if (empty.length === 0) {
+    // All 4 pieces placed — reset for next round of questions
+    puzzlePlacedSlots.value = [false, false, false, false]
+    advanceQuestion()
+    return
+  }
+
+  puzzleTargetSlot.value    = empty[Math.floor(Math.random() * empty.length)]
+  puzzleSelectedPiece.value = null
+  puzzleCorrect.value       = null
+
+  // Shuffle piece buttons
+  const arr = [0, 1, 2, 3]
+  for (let i = 3; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  puzzleShuffledPieces.value = arr
+  showPuzzleModal.value = true
+}
+
+function selectPuzzlePiece(pieceIdx) {
+  if (puzzleCorrect.value !== null) return
+  puzzleSelectedPiece.value = pieceIdx
+  puzzleCorrect.value       = pieceIdx === puzzleTargetSlot.value
+
+  if (puzzleCorrect.value) {
+    // Mark slot as placed
+    puzzlePlacedSlots.value = puzzlePlacedSlots.value.map((v, i) =>
+      i === puzzleTargetSlot.value ? true : v
+    )
+    setTimeout(() => {
+      showPuzzleModal.value = false
+      advanceQuestion()
+    }, 1400)
+  } else {
+    // Wrong piece → challenge
+    setTimeout(() => {
+      showPuzzleModal.value = false
+      showWrongModal.value  = true
+    }, 900)
+  }
+}
+
+function advanceQuestion() {
+  answered.value = false
+  isCorrect.value = false
+  selectedOption.value = ''
+  if (currentIndex.value < roundQuestions.value.length - 1) {
+    currentIndex.value++
+    loadQuestion()
+  } else {
+    phase.value = 'result'
+  }
+}
 
 onMounted(() => { buildCardDeck() })
 </script>
 
 
 <style src="./style.css"/>
+
+<style>
+/* ══════════════════════════════════════════════
+   PUZZLE / SLAGALICA STYLES
+   ══════════════════════════════════════════════ */
+
+.puzzle-overlay { z-index: 300; }
+
+.puzzle-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px 22px 20px;
+  width: min(500px, 96vw);
+  max-height: 92vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.4);
+  position: relative;
+}
+
+/* Header */
+.puzzle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.puzzle-badge {
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+.puzzle-continent-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  opacity: .85;
+}
+
+/* Progress dots */
+.puzzle-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.puzzle-progress-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text);
+  opacity: .55;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.puzzle-dots {
+  display: flex;
+  gap: 7px;
+}
+.puzzle-dot {
+  width: 13px; height: 13px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: var(--surface);
+  transition: all .35s;
+}
+.puzzle-dot.placed {
+  background: #43a047;
+  border-color: #43a047;
+  box-shadow: 0 0 8px #43a04766;
+}
+.puzzle-dot.target {
+  border-color: var(--gold);
+  animation: dot-pulse 1.2s infinite;
+}
+@keyframes dot-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(255,196,0,.5); }
+  50%      { box-shadow: 0 0 0 5px rgba(255,196,0,0); }
+}
+
+/* Board */
+.puzzle-board {
+  position: relative;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.puzzle-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  aspect-ratio: 200 / 150;
+}
+.puzzle-cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: background .3s;
+}
+.puzzle-cell.cell-placed  { background: rgba(67,160,71,.08); }
+.puzzle-cell.cell-target  { background: rgba(255,196,0,.06); }
+.puzzle-cell.cell-success { background: rgba(67,160,71,.18); animation: cell-pop .4s ease; }
+.puzzle-cell.cell-empty   { background: transparent; }
+
+@keyframes cell-pop {
+  0%   { transform: scale(.94); }
+  60%  { transform: scale(1.03); }
+  100% { transform: scale(1); }
+}
+
+.cell-svg { width: 100%; height: 100%; }
+.cell-ghost { opacity: .35; }
+
+.cell-question {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+.cell-q-mark {
+  font-size: 2.2rem;
+  color: var(--gold);
+  font-weight: 800;
+  animation: q-pulse 1.4s ease-in-out infinite;
+  user-select: none;
+}
+@keyframes q-pulse {
+  0%,100% { opacity: .6; transform: scale(1); }
+  50%     { opacity: 1;   transform: scale(1.15); }
+}
+
+/* Divider lines on the board */
+.puzzle-divider-h, .puzzle-divider-v {
+  position: absolute;
+  background: var(--border);
+  pointer-events: none;
+}
+.puzzle-divider-h {
+  left: 0; right: 0; top: 50%;
+  height: 1px;
+  transform: translateY(-50%);
+  border-top: 1px dashed var(--border);
+  background: none;
+}
+.puzzle-divider-v {
+  top: 0; bottom: 0; left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  border-left: 1px dashed var(--border);
+  background: none;
+}
+
+/* Instruction text */
+.puzzle-instruction {
+  text-align: center;
+  font-size: .82rem;
+  color: var(--text);
+  opacity: .65;
+  margin: 0;
+}
+
+/* Piece options */
+.puzzle-pieces {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.puzzle-piece-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 8px 4px 6px;
+  cursor: pointer;
+  transition: all .2s;
+  color: var(--text);
+}
+.puzzle-piece-btn:hover:not(:disabled) {
+  border-color: var(--gold);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+}
+.puzzle-piece-btn:disabled { cursor: not-allowed; opacity: .7; }
+
+.puzzle-piece-btn.piece-correct {
+  border-color: #43a047;
+  background: rgba(67,160,71,.12);
+  animation: piece-bounce .45s ease;
+}
+.puzzle-piece-btn.piece-wrong {
+  border-color: #e53935;
+  background: rgba(229,57,53,.1);
+  animation: piece-shake .4s ease;
+}
+.puzzle-piece-btn.piece-reveal {
+  border-color: #43a047;
+  background: rgba(67,160,71,.08);
+  opacity: .8;
+}
+
+@keyframes piece-bounce {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.1); }
+  70%  { transform: scale(.97); }
+  100% { transform: scale(1); }
+}
+@keyframes piece-shake {
+  0%,100% { transform: translateX(0); }
+  25%     { transform: translateX(-5px); }
+  75%     { transform: translateX(5px); }
+}
+
+.piece-svg {
+  width: 100%;
+  aspect-ratio: 100 / 75;
+  border-radius: 6px;
+  overflow: hidden;
+}
+.piece-label {
+  font-size: .62rem;
+  font-weight: 700;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text);
+  opacity: .6;
+}
+
+/* Feedback bar */
+.puzzle-feedback {
+  border-radius: 10px;
+  padding: 10px 16px;
+  text-align: center;
+  font-weight: 700;
+  font-size: .88rem;
+}
+.pf-ok  { background: rgba(67,160,71,.15); color: #43a047; border: 1px solid #43a04744; }
+.pf-err { background: rgba(229,57,53,.12); color: #e53935; border: 1px solid #e5393544; }
+
+/* Responsive: smaller screens */
+@media (max-width: 400px) {
+  .puzzle-pieces { grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .piece-label   { font-size: .55rem; }
+  .puzzle-card   { padding: 18px 14px 16px; gap: 12px; }
+}
+</style>
