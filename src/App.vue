@@ -379,20 +379,17 @@
                   'cell-empty':   !puzzlePlacedSlots[slotIdx] && slotIdx !== puzzleTargetSlot,
                 }">
                 <!-- Filled piece (already placed or just correctly placed) -->
-                <svg v-if="puzzlePlacedSlots[slotIdx] || (slotIdx === puzzleTargetSlot && puzzleCorrect === true)"
-                  :viewBox="quadrantViewBox(slotIdx)" class="cell-svg" preserveAspectRatio="xMidYMid meet">
-                  <path :d="continentPaths[activeContinent]" :fill="continentColors[activeContinent]"
-                    stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linejoin="round"/>
-                </svg>
+                <img v-if="puzzlePlacedSlots[slotIdx] || (slotIdx === puzzleTargetSlot && puzzleCorrect === true)"
+                  :src="getPuzzleImage(activeContinent, slotIdx)"
+                  class="cell-img" />
                 <!-- Target slot (empty, pulsing) -->
                 <div v-else-if="slotIdx === puzzleTargetSlot" class="cell-question">
                   <div class="cell-q-mark">?</div>
                 </div>
                 <!-- Other empty slots (grayed outline only) -->
-                <svg v-else :viewBox="quadrantViewBox(slotIdx)" class="cell-svg cell-ghost" preserveAspectRatio="xMidYMid meet">
-                  <path :d="continentPaths[activeContinent]" fill="none"
-                    stroke="var(--border)" stroke-width="1.5" stroke-dasharray="5,4" stroke-linejoin="round" opacity="0.4"/>
-                </svg>
+                <img v-else
+                  :src="getPuzzleImage(activeContinent, slotIdx)"
+                  class="cell-img cell-img-ghost" />
               </div>
             </div>
             <!-- Divider lines overlay -->
@@ -415,10 +412,7 @@
               }"
               :disabled="puzzleCorrect !== null"
               @click="selectPuzzlePiece(pieceIdx)">
-              <svg :viewBox="quadrantViewBox(pieceIdx)" class="piece-svg" preserveAspectRatio="xMidYMid meet">
-                <path :d="continentPaths[activeContinent]" :fill="continentColors[activeContinent]"
-                  stroke="rgba(255,255,255,0.5)" stroke-width="1.5" stroke-linejoin="round"/>
-              </svg>
+              <img :src="getPuzzleImage(activeContinent, pieceIdx)" class="piece-img" />
               <span class="piece-label">{{ getPieceLabel(pieceIdx) }}</span>
             </button>
           </div>
@@ -491,6 +485,8 @@
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
 import rawQuestions from './data/questions_translated.json'
+
+// ─── PUZZLE IMAGE PATHS (iz public/assets/) ───────────────────────────────────
 
 // ─── THEME ────────────────────────────────────────────────────────────────────
 const isDark = ref(false)
@@ -1240,8 +1236,22 @@ const puzzleShuffledPieces = ref([0, 1, 2, 3])
 const puzzleSelectedPiece  = ref(null)
 const puzzleCorrect        = ref(null)
 
-// Simplified SVG continent paths in a 200 x 150 coordinate space.
-// Each path is kept inside the bounding box so quadrant clipping works cleanly.
+// ─── PUZZLE IMAGES ───────────────────────────────────────────────────────────
+// Slike se nalaze u public/assets/ folder
+const puzzleImages = {
+  'Europa':          ['/assets/eu1.png', '/assets/eu2.png', '/assets/eu3.png', '/assets/eu4.png'],
+  'Australija':      ['/assets/au1.png', '/assets/au2.png', '/assets/au3.png', '/assets/au4.png'],
+  'Afrika':          ['/assets/af1.png', '/assets/af2.png', '/assets/af3.png', '/assets/af4.png'],
+  'Južna Amerika':   ['/assets/ja1.png', '/assets/ja2.png', '/assets/ja3.png', '/assets/ja4.png'],
+  'Azija':           ['/assets/az1.png', '/assets/az2.png', '/assets/az3.png', '/assets/az4.png'],
+  'Severna Amerika': ['/assets/sa1.png', '/assets/sa2.png', '/assets/sa3.png', '/assets/sa4.png'],
+}
+
+function getPuzzleImage(continent, slotIdx) {
+  return puzzleImages[continent]?.[slotIdx] ?? ''
+}
+
+// ─── LEGACY (kept for continent card colours) ─────────────────────────────────
 const continentPaths = {
   'Europa': [
     'M 62 22', 'L 80 12', 'L 100 9',  'L 120 11', 'L 140 9',
@@ -1392,11 +1402,20 @@ onMounted(() => { buildCardDeck() })
    PUZZLE / SLAGALICA STYLES
    ══════════════════════════════════════════════ */
 
-.puzzle-overlay { z-index: 300; }
+.puzzle-overlay {
+  z-index: 300;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
 
 .puzzle-card {
-  background: var(--card);
-  border: 1px solid var(--border);
+  background: #1a1a1a;
+  border: 1px solid #444;
   border-radius: 20px;
   padding: 24px 22px 20px;
   width: min(500px, 96vw);
@@ -1405,8 +1424,9 @@ onMounted(() => { buildCardDeck() })
   display: flex;
   flex-direction: column;
   gap: 16px;
-  box-shadow: 0 24px 64px rgba(0,0,0,.4);
+  box-shadow: 0 24px 64px rgba(0,0,0,.9);
   position: relative;
+  color: #fff;
 }
 
 /* Header */
@@ -1429,8 +1449,7 @@ onMounted(() => { buildCardDeck() })
 .puzzle-continent-name {
   font-size: 1rem;
   font-weight: 700;
-  color: var(--text);
-  opacity: .85;
+  color: #fff;
 }
 
 /* Progress dots */
@@ -1442,8 +1461,7 @@ onMounted(() => { buildCardDeck() })
 .puzzle-progress-label {
   font-size: .72rem;
   font-weight: 600;
-  color: var(--text);
-  opacity: .55;
+  color: #aaa;
   text-transform: uppercase;
   letter-spacing: .06em;
   white-space: nowrap;
@@ -1476,16 +1494,16 @@ onMounted(() => { buildCardDeck() })
 /* Board */
 .puzzle-board {
   position: relative;
-  border: 2px solid var(--border);
+  border: 2px solid #444;
   border-radius: 14px;
   overflow: hidden;
-  background: var(--surface);
+  background: #111;
 }
 .puzzle-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  aspect-ratio: 200 / 150;
+  aspect-ratio: 4 / 3;
 }
 .puzzle-cell {
   position: relative;
@@ -1494,11 +1512,12 @@ onMounted(() => { buildCardDeck() })
   justify-content: center;
   overflow: hidden;
   transition: background .3s;
+  background: #111;
 }
-.puzzle-cell.cell-placed  { background: rgba(67,160,71,.08); }
-.puzzle-cell.cell-target  { background: rgba(255,196,0,.06); }
-.puzzle-cell.cell-success { background: rgba(67,160,71,.18); animation: cell-pop .4s ease; }
-.puzzle-cell.cell-empty   { background: transparent; }
+.puzzle-cell.cell-placed  { background: rgba(67,160,71,.15); }
+.puzzle-cell.cell-target  { background: rgba(255,196,0,.1); border: 2px dashed rgba(255,196,0,.5); }
+.puzzle-cell.cell-success { background: rgba(67,160,71,.25); animation: cell-pop .4s ease; }
+.puzzle-cell.cell-empty   { background: #111; }
 
 @keyframes cell-pop {
   0%   { transform: scale(.94); }
@@ -1508,6 +1527,25 @@ onMounted(() => { buildCardDeck() })
 
 .cell-svg { width: 100%; height: 100%; }
 .cell-ghost { opacity: .35; }
+
+/* Image-based puzzle pieces */
+.cell-img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+}
+.cell-img-ghost {
+  opacity: 0.2;
+  filter: grayscale(80%);
+}
+.piece-img {
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  border-radius: 6px;
+  display: block;
+}
 
 .cell-question {
   width: 100%; height: 100%;
@@ -1550,8 +1588,7 @@ onMounted(() => { buildCardDeck() })
 .puzzle-instruction {
   text-align: center;
   font-size: .82rem;
-  color: var(--text);
-  opacity: .65;
+  color: #aaa;
   margin: 0;
 }
 
@@ -1566,18 +1603,18 @@ onMounted(() => { buildCardDeck() })
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  border: 2px solid var(--border);
+  border: 2px solid #444;
   border-radius: 12px;
-  background: var(--surface);
+  background: #222;
   padding: 8px 4px 6px;
   cursor: pointer;
   transition: all .2s;
-  color: var(--text);
+  color: #fff;
 }
 .puzzle-piece-btn:hover:not(:disabled) {
   border-color: var(--gold);
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0,0,0,.18);
+  box-shadow: 0 6px 18px rgba(0,0,0,.5);
 }
 .puzzle-piece-btn:disabled { cursor: not-allowed; opacity: .7; }
 
@@ -1620,8 +1657,7 @@ onMounted(() => { buildCardDeck() })
   font-weight: 700;
   letter-spacing: .05em;
   text-transform: uppercase;
-  color: var(--text);
-  opacity: .6;
+  color: #aaa;
 }
 
 /* Feedback bar */
