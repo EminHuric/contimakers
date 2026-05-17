@@ -342,37 +342,45 @@
             <span class="puzzle-progress-label">{{ t('puzzleProgress') }}</span>
             <div class="puzzle-dots">
               <div v-for="i in (isFinale ? 3 : 4)" :key="i" class="puzzle-dot"
-                :class="{ placed: puzzlePlacedSlots[i-1], target: (i-1) === puzzleTargetSlot && !puzzlePlacedSlots[i-1] }">
+                :class="{ placed: puzzlePlacedSlots[i-1] }">
               </div>
             </div>
           </div>
 
-          <!-- Continent board: grid (2x2 for normal, 3-slot for finale) -->
-          <div class="puzzle-board">
+          <!-- Board: drop targets -->
+          <div class="puzzle-board"
+            @dragover.prevent
+            @touchmove.prevent>
             <div :class="isFinale ? 'puzzle-grid-3' : 'puzzle-grid'">
               <div v-for="slotIdx in (isFinale ? [0,1,2] : [0,1,2,3])" :key="slotIdx"
                 class="puzzle-cell"
+                :data-slot-idx="slotIdx"
                 :class="{
-                  'cell-placed':  puzzlePlacedSlots[slotIdx] || (slotIdx === puzzleTargetSlot && puzzleCorrect === true),
-                  'cell-target':  slotIdx === puzzleTargetSlot && !puzzlePlacedSlots[slotIdx] && puzzleCorrect === null,
-                  'cell-success': slotIdx === puzzleTargetSlot && puzzleCorrect === true,
-                  'cell-empty':   !puzzlePlacedSlots[slotIdx] && slotIdx !== puzzleTargetSlot,
-                }">
-                <!-- Filled piece (already placed or just correctly placed) -->
-                <img v-if="puzzlePlacedSlots[slotIdx] || (slotIdx === puzzleTargetSlot && puzzleCorrect === true)"
+                  'cell-placed':   puzzlePlacedSlots[slotIdx],
+                  'cell-dragover': puzzleDragOverSlot === slotIdx && !puzzlePlacedSlots[slotIdx],
+                  'cell-success':  puzzleJustPlaced === slotIdx,
+                  'cell-wrong':    puzzleWrongSlot === slotIdx,
+                }"
+                @dragover.prevent="puzzleDragOverSlot = slotIdx"
+                @dragleave="onDragLeave(slotIdx)"
+                @drop.prevent="dropOnSlot(slotIdx)">
+                <img v-if="puzzlePlacedSlots[slotIdx]"
                   :src="getPuzzleImage(activeContinent, slotIdx)"
                   class="cell-img" />
-                <!-- Target slot (empty, pulsing) -->
-                <div v-else-if="slotIdx === puzzleTargetSlot" class="cell-question">
-                  <div class="cell-q-mark">?</div>
-                </div>
-                <!-- Other empty slots (grayed outline only) -->
-                <img v-else
-                  :src="getPuzzleImage(activeContinent, slotIdx)"
-                  class="cell-img cell-img-ghost" />
+                <div v-else class="cell-empty-label">{{ slotIdx + 1 }}</div>
               </div>
             </div>
-            <!-- Divider lines overlay -->
+            <!-- Logo watermark -->
+            <div class="puzzle-board-logo">
+              <svg viewBox="0 0 100 100" fill="none">
+                <circle cx="50" cy="50" r="46" stroke="currentColor" stroke-width="2" opacity="0.3"/>
+                <ellipse cx="50" cy="50" rx="22" ry="46" stroke="currentColor" stroke-width="1.5" opacity="0.2"/>
+                <path d="M4 50 Q25 38 50 50 Q75 62 96 50" stroke="currentColor" stroke-width="1.2" opacity="0.25"/>
+                <circle cx="50" cy="50" r="4" fill="var(--gold)" opacity="0.4"/>
+              </svg>
+              <span>CONTIMAKERS</span>
+            </div>
+            <!-- Dividers -->
             <template v-if="!isFinale">
               <div class="puzzle-divider-h"></div>
               <div class="puzzle-divider-v"></div>
@@ -386,28 +394,33 @@
           <!-- Instruction -->
           <p class="puzzle-instruction">{{ t('puzzleInstruction') }}</p>
 
-          <!-- Piece options -->
+          <!-- Pieces tray: drag from here -->
           <div class="puzzle-pieces">
-            <button v-for="pieceIdx in puzzleShuffledPieces" :key="pieceIdx"
+            <div v-for="pieceIdx in puzzleShuffledPieces" :key="pieceIdx"
               class="puzzle-piece-btn"
               :class="{
-                'piece-selected': puzzleSelectedPiece === pieceIdx && puzzleCorrect === null,
-                'piece-correct':  puzzleCorrect === true  && pieceIdx === puzzleTargetSlot,
-                'piece-wrong':    puzzleCorrect === false && puzzleSelectedPiece === pieceIdx,
-                'piece-reveal':   puzzleCorrect !== null  && pieceIdx === puzzleTargetSlot && puzzleSelectedPiece !== pieceIdx,
+                'piece-dragging': puzzleDraggingPiece === pieceIdx,
+                'piece-placed':   puzzlePiecePlaced[pieceIdx],
+                'piece-wrong':    puzzleWrongPiece === pieceIdx,
               }"
-              :disabled="puzzleCorrect !== null"
-              @click="selectPuzzlePiece(pieceIdx)">
+              :draggable="!puzzlePiecePlaced[pieceIdx]"
+              @dragstart="startDrag(pieceIdx, $event)"
+              @dragend="puzzleDraggingPiece = null; puzzleDragOverSlot = null"
+              @touchstart.prevent="startTouch(pieceIdx, $event)"
+              @touchmove.prevent="onTouchMove($event)"
+              @touchend.prevent="onTouchEnd($event)">
               <img :src="getPuzzleImage(activeContinent, pieceIdx)" class="piece-img" />
               <span class="piece-label">{{ getPieceLabel(pieceIdx) }}</span>
-            </button>
+            </div>
           </div>
 
-          <!-- Feedback message -->
+          <!-- Feedback -->
           <Transition name="fb-slide">
-            <div v-if="puzzleCorrect !== null" class="puzzle-feedback"
-              :class="puzzleCorrect ? 'pf-ok' : 'pf-err'">
-              <span>{{ puzzleCorrect ? t('puzzleSuccess') : '❌ ' + t('wrongAnswer') }}</span>
+            <div v-if="puzzleWrongPiece !== null" class="puzzle-feedback pf-err">
+              <span>❌ {{ t('wrongAnswer') }}</span>
+            </div>
+            <div v-else-if="puzzleJustPlaced !== null" class="puzzle-feedback pf-ok">
+              <span>{{ t('puzzleSuccess') }}</span>
             </div>
           </Transition>
         </div>
@@ -963,7 +976,12 @@ function startQuiz() {
   usedChallengeIndices.value = []
   currentChallengeIndex.value = -1
   puzzlePlacedSlots.value    = [false, false, false, false]
-  puzzleCorrect.value        = null
+  puzzlePiecePlaced.value    = [false, false, false, false]
+  puzzleDraggingPiece.value  = null
+  puzzleDragOverSlot.value   = null
+  puzzleJustPlaced.value     = null
+  puzzleWrongSlot.value      = null
+  puzzleWrongPiece.value     = null
   showPuzzleModal.value      = false
   loadQuestion()
   phase.value = 'quiz'
@@ -1231,10 +1249,16 @@ function challengeDone() { showChallengeCard.value = false; advanceQuestion() }
 // ─── PUZZLE / SLAGALICA STATE ─────────────────────────────────────────────────
 const showPuzzleModal      = ref(false)
 const puzzlePlacedSlots    = ref([false, false, false, false])
-const puzzleTargetSlot     = ref(0)
+const puzzlePiecePlaced    = ref([false, false, false, false])
 const puzzleShuffledPieces = ref([0, 1, 2, 3])
-const puzzleSelectedPiece  = ref(null)
-const puzzleCorrect        = ref(null)
+const puzzleDraggingPiece  = ref(null)   // piece currently being dragged
+const puzzleDragOverSlot   = ref(null)   // slot currently hovered during drag
+const puzzleJustPlaced     = ref(null)   // slot just correctly placed (green flash)
+const puzzleWrongSlot      = ref(null)   // slot that got wrong piece (red flash)
+const puzzleWrongPiece     = ref(null)   // piece that was wrong (red flash)
+// touch drag state
+let _touchDraggingPiece = null
+let _touchGhost = null
 
 // ─── PUZZLE IMAGES ───────────────────────────────────────────────────────────
 // Slike se nalaze u public/assets/ folder
@@ -1390,25 +1414,8 @@ function getPieceLabel(idx) { return t(pieceLabelKeys[idx]) }
 
 // Puzzle functions
 function openPuzzle() {
-  // If isCorrect is false, just advance (wrong-path "Next")
   if (!isCorrect.value) { advanceQuestion(); return }
 
-  // Find an unfilled slot
-  const empty = puzzlePlacedSlots.value
-    .map((v, i) => (v ? null : i)).filter(i => i !== null)
-
-  if (empty.length === 0) {
-    // Should not normally happen (handled in selectPuzzlePiece), but reset as safety
-    puzzlePlacedSlots.value = [false, false, false, false]
-    advanceQuestion()
-    return
-  }
-
-  puzzleTargetSlot.value    = empty[Math.floor(Math.random() * empty.length)]
-  puzzleSelectedPiece.value = null
-  puzzleCorrect.value       = null
-
-  // Shuffle piece buttons
   const pieceCount = isFinale.value ? 3 : 4
   const arr = Array.from({ length: pieceCount }, (_, i) => i)
   for (let i = arr.length - 1; i > 0; i--) {
@@ -1416,7 +1423,129 @@ function openPuzzle() {
     [arr[i], arr[j]] = [arr[j], arr[i]]
   }
   puzzleShuffledPieces.value = arr
+  puzzleDraggingPiece.value  = null
+  puzzleDragOverSlot.value   = null
+  puzzleJustPlaced.value     = null
+  puzzleWrongSlot.value      = null
+  puzzleWrongPiece.value     = null
   showPuzzleModal.value = true
+}
+
+// ── Mouse/Pointer drag ────────────────────────────────────────────────────────
+function startDrag(pieceIdx, evt) {
+  if (puzzlePiecePlaced.value[pieceIdx]) { evt.preventDefault(); return }
+  puzzleDraggingPiece.value = pieceIdx
+  evt.dataTransfer.effectAllowed = 'move'
+  evt.dataTransfer.setData('text/plain', String(pieceIdx))
+}
+
+function onDragLeave(slotIdx) {
+  if (puzzleDragOverSlot.value === slotIdx) puzzleDragOverSlot.value = null
+}
+
+function dropOnSlot(slotIdx) {
+  const pieceIdx = puzzleDraggingPiece.value
+  puzzleDragOverSlot.value  = null
+  puzzleDraggingPiece.value = null
+  if (pieceIdx === null) return
+  tryPlace(slotIdx, pieceIdx)
+}
+
+// ── Touch drag ────────────────────────────────────────────────────────────────
+function startTouch(pieceIdx, evt) {
+  if (puzzlePiecePlaced.value[pieceIdx]) return
+  _touchDraggingPiece = pieceIdx
+  puzzleDraggingPiece.value = pieceIdx
+
+  // Create ghost element that follows finger
+  const src = evt.currentTarget.querySelector('img')?.src
+  if (src) {
+    _touchGhost = document.createElement('img')
+    _touchGhost.src = src
+    _touchGhost.style.cssText = 'position:fixed;width:70px;height:70px;object-fit:cover;border-radius:8px;pointer-events:none;opacity:.85;z-index:9999;border:2px solid var(--gold,#ffc400);'
+    const t0 = evt.touches[0]
+    _touchGhost.style.left = (t0.clientX - 35) + 'px'
+    _touchGhost.style.top  = (t0.clientY - 35) + 'px'
+    document.body.appendChild(_touchGhost)
+  }
+}
+
+function onTouchMove(evt) {
+  if (!_touchGhost) return
+  const t0 = evt.touches[0]
+  _touchGhost.style.left = (t0.clientX - 35) + 'px'
+  _touchGhost.style.top  = (t0.clientY - 35) + 'px'
+
+  // Highlight slot under finger
+  _touchGhost.style.display = 'none'
+  const el = document.elementFromPoint(t0.clientX, t0.clientY)
+  _touchGhost.style.display = ''
+  const cell = el?.closest('.puzzle-cell')
+  if (cell) {
+    const idx = parseInt(cell.dataset.slotIdx)
+    puzzleDragOverSlot.value = isNaN(idx) ? null : idx
+  } else {
+    puzzleDragOverSlot.value = null
+  }
+}
+
+function onTouchEnd(evt) {
+  if (_touchGhost) { _touchGhost.remove(); _touchGhost = null }
+  const t0 = evt.changedTouches[0]
+
+  puzzleDraggingPiece.value = null
+  puzzleDragOverSlot.value  = null
+
+  const pieceIdx = _touchDraggingPiece
+  _touchDraggingPiece = null
+  if (pieceIdx === null) return
+
+  const el = document.elementFromPoint(t0.clientX, t0.clientY)
+  const cell = el?.closest('.puzzle-cell')
+  if (!cell) return
+  const slotIdx = parseInt(cell.dataset.slotIdx)
+  if (!isNaN(slotIdx)) tryPlace(slotIdx, pieceIdx)
+}
+
+// ── Core place logic ──────────────────────────────────────────────────────────
+function tryPlace(slotIdx, pieceIdx) {
+  if (puzzlePlacedSlots.value[slotIdx]) return   // already filled
+
+  if (pieceIdx === slotIdx) {
+    // ✓ Correct — place the piece
+    const newSlots  = [...puzzlePlacedSlots.value];  newSlots[slotIdx]   = true
+    const newPieces = [...puzzlePiecePlaced.value];   newPieces[pieceIdx] = true
+    puzzlePlacedSlots.value  = newSlots
+    puzzlePiecePlaced.value  = newPieces
+    puzzleJustPlaced.value   = slotIdx
+
+    const allPlaced = newSlots.every(v => v)
+    setTimeout(() => {
+      puzzleJustPlaced.value = null
+      showPuzzleModal.value  = false
+      if (allPlaced) {
+        // Puzzle complete!
+        if (isFinale.value) {
+          showFinaleWinner.value = true
+        } else {
+          phase.value = 'finale'
+        }
+      } else {
+        // Not done yet — back to questions for next piece
+        advanceQuestion()
+      }
+    }, 900)
+  } else {
+    // ✗ Wrong — flash red, close, back to questions (no penalty, try again later)
+    puzzleWrongSlot.value  = slotIdx
+    puzzleWrongPiece.value = pieceIdx
+    setTimeout(() => {
+      puzzleWrongSlot.value  = null
+      puzzleWrongPiece.value = null
+      showPuzzleModal.value  = false
+      advanceQuestion()
+    }, 900)
+  }
 }
 
 function startFinaleQuiz() {
@@ -1431,7 +1560,12 @@ function startFinaleQuiz() {
   usedChallengeIndices.value  = []
   currentChallengeIndex.value = -1
   puzzlePlacedSlots.value     = [false, false, false]  // 3 pieces for finale
-  puzzleCorrect.value         = null
+  puzzlePiecePlaced.value     = [false, false, false]
+  puzzleDraggingPiece.value   = null
+  puzzleDragOverSlot.value    = null
+  puzzleJustPlaced.value      = null
+  puzzleWrongSlot.value       = null
+  puzzleWrongPiece.value      = null
   showPuzzleModal.value       = false
   showFinaleWinner.value      = false
   isFinale.value              = true
@@ -1441,40 +1575,7 @@ function startFinaleQuiz() {
   phase.value = 'quiz'
 }
 
-function selectPuzzlePiece(pieceIdx) {
-  if (puzzleCorrect.value !== null) return
-  puzzleSelectedPiece.value = pieceIdx
-  puzzleCorrect.value       = pieceIdx === puzzleTargetSlot.value
 
-  if (puzzleCorrect.value) {
-    // Mark slot as placed
-    const newSlots = puzzlePlacedSlots.value.map((v, i) =>
-      i === puzzleTargetSlot.value ? true : v
-    )
-    puzzlePlacedSlots.value = newSlots
-    const allPlaced = newSlots.every(v => v)
-    setTimeout(() => {
-      showPuzzleModal.value = false
-      if (allPlaced) {
-        if (isFinale.value) {
-          // Finale complete — show winner screen!
-          showFinaleWinner.value = true
-        } else {
-          // All 4 continental pieces placed — go to FINALE selection
-          phase.value = 'finale'
-        }
-      } else {
-        advanceQuestion()
-      }
-    }, 1400)
-  } else {
-    // Wrong piece → challenge
-    setTimeout(() => {
-      showPuzzleModal.value = false
-      showWrongModal.value  = true
-    }, 900)
-  }
-}
 
 function advanceQuestion() {
   answered.value = false
@@ -1591,10 +1692,46 @@ onMounted(() => { buildCardDeck() })
 /* Board */
 .puzzle-board {
   position: relative;
-  border: 2px solid #444;
+  border: 2.5px solid var(--gold);
   border-radius: 14px;
   overflow: hidden;
-  background: #111;
+  background: #0d0d0d;
+  box-shadow: 0 0 0 1px rgba(255,196,0,.1), inset 0 0 40px rgba(0,0,0,.6);
+}
+
+/* Logo watermark centered on board */
+.puzzle-board-logo {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+  z-index: 1;
+}
+.puzzle-board-logo svg {
+  width: 48px;
+  height: 48px;
+  color: var(--gold);
+}
+.puzzle-board-logo span {
+  font-size: .55rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: rgba(255,196,0,.25);
+  text-transform: uppercase;
+}
+
+/* Empty slot number label */
+.cell-empty-label {
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: rgba(255,196,0,.35);
+  user-select: none;
+  z-index: 2;
+  position: relative;
 }
 .puzzle-grid {
   display: grid;
@@ -1622,15 +1759,21 @@ onMounted(() => { buildCardDeck() })
   transition: background .3s;
   background: #111;
 }
-.puzzle-cell.cell-placed  { background: rgba(67,160,71,.15); }
-.puzzle-cell.cell-target  { background: rgba(255,196,0,.1); border: 2px dashed rgba(255,196,0,.5); }
-.puzzle-cell.cell-success { background: rgba(67,160,71,.25); animation: cell-pop .4s ease; }
-.puzzle-cell.cell-empty   { background: #111; }
+.puzzle-cell { cursor: default; z-index: 2; position: relative; }
+.puzzle-cell.cell-placed   { background: rgba(67,160,71,.12); }
+.puzzle-cell.cell-dragover { background: rgba(255,196,0,.18); outline: 2.5px dashed rgba(255,196,0,.8); outline-offset: -3px; }
+.puzzle-cell.cell-success  { background: rgba(67,160,71,.28); animation: cell-pop .4s ease; }
+.puzzle-cell.cell-wrong    { background: rgba(220,50,50,.25); animation: cell-shake .4s ease; }
 
 @keyframes cell-pop {
   0%   { transform: scale(.94); }
   60%  { transform: scale(1.03); }
   100% { transform: scale(1); }
+}
+@keyframes cell-shake {
+  0%,100% { transform: translateX(0); }
+  25%     { transform: translateX(-6px); }
+  75%     { transform: translateX(6px); }
 }
 
 .cell-svg { width: 100%; height: 100%; }
@@ -1707,6 +1850,29 @@ onMounted(() => { buildCardDeck() })
   font-size: .82rem;
   color: #aaa;
   margin: 0;
+}
+
+/* Drag states */
+.puzzle-piece-btn {
+  cursor: grab !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.puzzle-piece-btn:active { cursor: grabbing !important; }
+.piece-dragging {
+  opacity: .45;
+  transform: scale(.95);
+}
+.piece-placed {
+  opacity: .2;
+  pointer-events: none;
+  filter: grayscale(1);
+  cursor: default !important;
+}
+.piece-wrong {
+  border-color: #e53935 !important;
+  background: rgba(229,57,53,.15) !important;
+  animation: cell-shake .4s ease;
 }
 
 /* Piece options */
@@ -2042,7 +2208,7 @@ onMounted(() => { buildCardDeck() })
   filter: drop-shadow(0 0 18px rgba(255,196,0,.35));
 }
 .landing-title {
-  font-size: 2rem;
+  font-size: 2.6rem;
   font-weight: 900;
   letter-spacing: .2em;
   background: linear-gradient(135deg, var(--gold), #fff, var(--gold));
@@ -2050,7 +2216,6 @@ onMounted(() => { buildCardDeck() })
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
-  max-width: 100%;
 }
 .landing-lang-row {
   display: flex;
