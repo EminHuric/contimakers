@@ -21,11 +21,12 @@
       </svg>
     </button>
 
-    <!-- ░░ LOGIN ░░ -->
+    <!-- ░░ LANDING ░░ -->
     <Transition name="page">
-      <div v-if="phase === 'login'" class="login-root" key="login">
-        <div class="login-card">
-          <div class="login-logo">
+      <div v-if="phase === 'login'" class="landing-root" key="login">
+        <div class="landing-card">
+
+          <div class="landing-logo">
             <svg class="globe-svg" viewBox="0 0 100 100" fill="none">
               <circle cx="50" cy="50" r="46" stroke="currentColor" stroke-width="2.5" opacity="0.9"/>
               <ellipse cx="50" cy="50" rx="22" ry="46" stroke="currentColor" stroke-width="1.6" opacity="0.7"/>
@@ -36,10 +37,10 @@
               <circle cx="50" cy="50" r="4.5" fill="currentColor" opacity="0.85"/>
               <circle cx="50" cy="50" r="2" fill="var(--gold)" opacity="1"/>
             </svg>
-            <h1 class="login-title">CONTIMAKERS</h1>
+            <h1 class="landing-title">CONTIMAKERS</h1>
           </div>
 
-          <div class="login-lang-row">
+          <div class="landing-lang-row">
             <button
               v-for="l in languages"
               :key="l.code"
@@ -53,36 +54,15 @@
             </button>
           </div>
 
-          <div class="login-fields">
-            <div class="login-field">
-              <label class="login-label">{{ loginT('username') }}</label>
-              <input v-model="loginUsername" class="login-input" type="text"
-                :placeholder="loginT('usernamePh')" @keyup.enter="doLogin" autocomplete="username"/>
-            </div>
-            <div class="login-field">
-              <label class="login-label">{{ loginT('password') }}</label>
-              <input v-model="loginPassword" class="login-input"
-                :type="showPass ? 'text' : 'password'"
-                :placeholder="loginT('passwordPh')" @keyup.enter="doLogin" autocomplete="current-password"/>
-              <button class="login-eye" @click="showPass = !showPass" type="button">
-                <svg v-if="!showPass" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
-                </svg>
-                <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/>
-                </svg>
-              </button>
-            </div>
-            <Transition name="fb-slide">
-              <p v-if="loginError" class="login-error">⚠ {{ loginT('wrongCreds') }}</p>
-            </Transition>
-            <button class="btn-login" @click="doLogin">
-              <span>{{ loginT('enter') }}</span>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
-            </button>
-          </div>
+          <button class="btn-landing-start" @click="doLogin">
+            <span>{{ t('startBtn') }}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </button>
+
+          <p class="landing-tagline">{{ t('tagline') }}</p>
+
         </div>
       </div>
     </Transition>
@@ -904,14 +884,8 @@ function loginT(key) {
 }
 
 function doLogin() {
-  loginError.value = false
-  if (VALID_USERS[loginUsername.value.trim()] === loginPassword.value) {
-    buildCardDeck()
-    phase.value = 'selection'
-  } else {
-    loginError.value = true
-    setTimeout(() => { loginError.value = false }, 3000)
-  }
+  buildCardDeck()
+  phase.value = 'selection'
 }
 
 // ─── START SCREEN ─────────────────────────────────────────────────────────────
@@ -1265,7 +1239,7 @@ const puzzleCorrect        = ref(null)
 // ─── PUZZLE IMAGES ───────────────────────────────────────────────────────────
 // Slike se nalaze u public/assets/ folder
 const puzzleImages = {
-  'Europa':          ['/assets/eu1.png', '/assets/eu2.png', '/assets/eu3.png', '/assets/eu4.png'],
+  'Europa':          ['/assets/eu1.png', '/assets/eu4.png', '/assets/eu2.png', '/assets/eu3.png'],
   'Australija':      ['/assets/au1.png', '/assets/au2.png', '/assets/au3.png', '/assets/au4.png'],
   'Afrika':          ['/assets/af1.png', '/assets/af2.png', '/assets/af3.png', '/assets/af4.png'],
   'Južna Amerika':   ['/assets/ja1.png', '/assets/ja2.png', '/assets/ja3.png', '/assets/ja4.png'],
@@ -1397,7 +1371,7 @@ const continentPaths = {
 }
 
 const continentColors = {
-  'ropa':          '#3f51b5',
+  'Europa':          '#3f51b5',
   'Azija':           '#e53935',
   'Afrika':          '#fb8c00',
   'Severna Amerika': '#43a047',
@@ -2035,4 +2009,78 @@ onMounted(() => { buildCardDeck() })
   margin-top: 4px;
 }
 .btn-finale-winner-back:hover { transform: scale(1.04); }
+
+/* ══════════════════════════════════════════════
+   LANDING PAGE
+   ══════════════════════════════════════════════ */
+.landing-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.landing-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+.landing-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+.landing-logo .globe-svg {
+  width: 90px;
+  height: 90px;
+  color: var(--gold);
+  filter: drop-shadow(0 0 18px rgba(255,196,0,.35));
+}
+.landing-title {
+  font-size: 2.6rem;
+  font-weight: 900;
+  letter-spacing: .2em;
+  background: linear-gradient(135deg, var(--gold), #fff, var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+.landing-lang-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+.btn-landing-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, var(--gold), #ff9f43);
+  color: #000;
+  border: none;
+  border-radius: 16px;
+  padding: 16px 48px;
+  font-size: 1.2rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 6px 28px rgba(255,196,0,.4);
+  margin-top: 4px;
+}
+.btn-landing-start svg { width: 22px; height: 22px; }
+.btn-landing-start:hover { transform: scale(1.05); box-shadow: 0 10px 36px rgba(255,196,0,.55); }
+.landing-tagline {
+  font-size: .9rem;
+  color: var(--muted);
+  margin: 0;
+  line-height: 1.6;
+  max-width: 300px;
+}
 </style>
