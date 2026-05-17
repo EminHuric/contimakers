@@ -361,16 +361,16 @@
           <div class="puzzle-progress-row">
             <span class="puzzle-progress-label">{{ t('puzzleProgress') }}</span>
             <div class="puzzle-dots">
-              <div v-for="i in puzzleTotalSlots" :key="i" class="puzzle-dot"
+              <div v-for="i in (isFinale ? 3 : 4)" :key="i" class="puzzle-dot"
                 :class="{ placed: puzzlePlacedSlots[i-1], target: (i-1) === puzzleTargetSlot && !puzzlePlacedSlots[i-1] }">
               </div>
             </div>
           </div>
 
-          <!-- Continent board: dynamic grid -->
+          <!-- Continent board: grid (2x2 for normal, 3-slot for finale) -->
           <div class="puzzle-board">
-            <div class="puzzle-grid" :class="isFinale ? 'puzzle-grid-3' : 'puzzle-grid-4'">
-              <div v-for="slotIdx in puzzleSlotIndices" :key="slotIdx"
+            <div :class="isFinale ? 'puzzle-grid-3' : 'puzzle-grid'">
+              <div v-for="slotIdx in (isFinale ? [0,1,2] : [0,1,2,3])" :key="slotIdx"
                 class="puzzle-cell"
                 :class="{
                   'cell-placed':  puzzlePlacedSlots[slotIdx] || (slotIdx === puzzleTargetSlot && puzzleCorrect === true),
@@ -393,13 +393,13 @@
               </div>
             </div>
             <!-- Divider lines overlay -->
-            <template v-if="isFinale">
-              <div class="puzzle-divider-h puzzle-divider-h1"></div>
-              <div class="puzzle-divider-h puzzle-divider-h2"></div>
-            </template>
-            <template v-else>
+            <template v-if="!isFinale">
               <div class="puzzle-divider-h"></div>
               <div class="puzzle-divider-v"></div>
+            </template>
+            <template v-else>
+              <div class="puzzle-divider-h puzzle-divider-h-3a"></div>
+              <div class="puzzle-divider-h puzzle-divider-h-3b"></div>
             </template>
           </div>
 
@@ -407,7 +407,7 @@
           <p class="puzzle-instruction">{{ t('puzzleInstruction') }}</p>
 
           <!-- Piece options -->
-          <div class="puzzle-pieces" :class="isFinale ? 'puzzle-pieces-3' : 'puzzle-pieces-4'">
+          <div class="puzzle-pieces">
             <button v-for="pieceIdx in puzzleShuffledPieces" :key="pieceIdx"
               class="puzzle-piece-btn"
               :class="{
@@ -634,7 +634,6 @@ const uiStrings = {
     puzzleInstruction: 'Choose the piece that fits the missing spot!',
     puzzleSuccess: 'Perfect! Piece placed! 🎉',
     pieceNW: 'Northwest', pieceNE: 'Northeast', pieceSW: 'Southwest', pieceSE: 'Southeast',
-    pieceTop: 'North', pieceMid: 'Middle', pieceBot: 'South',
     puzzleProgress: 'Continent Assembly',
     finaleTitle: 'FINALE',
     finaleSubtitle: 'Choose a country to assemble!',
@@ -690,7 +689,6 @@ const uiStrings = {
     puzzleInstruction: 'Izaberi deo koji odgovara praznom mjestu!',
     puzzleSuccess: 'Tačno! Deo postavljen! 🎉',
     pieceNW: 'Sjeverozapad', pieceNE: 'Sjeveroistok', pieceSW: 'Jugozapad', pieceSE: 'Jugoistok',
-    pieceTop: 'Sever', pieceMid: 'Sredina', pieceBot: 'Jug',
     puzzleProgress: 'Sklapanje kontinenta',
     finaleTitle: 'FINALE',
     finaleSubtitle: 'Izaberi zemlju za sklapanje!',
@@ -746,7 +744,6 @@ const uiStrings = {
     puzzleInstruction: 'Выбери кусок, который подходит на пустое место!',
     puzzleSuccess: 'Верно! Кусок установлен! 🎉',
     pieceNW: 'Северо-запад', pieceNE: 'Северо-восток', pieceSW: 'Юго-запад', pieceSE: 'Юго-восток',
-    pieceTop: 'Север', pieceMid: 'Середина', pieceBot: 'Юг',
     puzzleProgress: 'Сборка континента',
     finaleTitle: 'ФИНАЛ',
     finaleSubtitle: 'Выбери страну для сборки!',
@@ -802,7 +799,6 @@ const uiStrings = {
     puzzleInstruction: 'Boş yere uyan parçayı seç!',
     puzzleSuccess: 'Harika! Parça yerleştirildi! 🎉',
     pieceNW: 'Kuzeybatı', pieceNE: 'Kuzeydoğu', pieceSW: 'Güneybatı', pieceSE: 'Güneydoğu',
-    pieceTop: 'Kuzey', pieceMid: 'Orta', pieceBot: 'Güney',
     puzzleProgress: 'Kıta Birleştirme',
     finaleTitle: 'FİNAL',
     finaleSubtitle: 'Bir ülke seç ve birleştir!',
@@ -858,7 +854,6 @@ const uiStrings = {
     puzzleInstruction: 'Izvēlies gabalu, kas der tukšajai vietai!',
     puzzleSuccess: 'Pareizi! Gabals novietots! 🎉',
     pieceNW: 'Ziemeļrietumi', pieceNE: 'Ziemeļaustrumi', pieceSW: 'Dienvidrietumi', pieceSE: 'Dienvidaustrumi',
-    pieceTop: 'Ziemeļi', pieceMid: 'Vidus', pieceBot: 'Dienvidi',
     puzzleProgress: 'Kontinenta Saliekšana',
     finaleTitle: 'FINĀLS',
     finaleSubtitle: 'Izvēlies valsti saliekšanai!',
@@ -885,8 +880,11 @@ function t(key) {
 }
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
-const VALID_USER = 'ekonomska1'
-const VALID_PASS = '522026'
+const VALID_USERS = {
+  'ekonomska1':  '522026',
+  'be4thefield': 'prijepolje',
+  'guest123':    'test123',
+}
 
 const loginUsername = ref('')
 const loginPassword = ref('')
@@ -907,7 +905,7 @@ function loginT(key) {
 
 function doLogin() {
   loginError.value = false
-  if (loginUsername.value.trim() === VALID_USER && loginPassword.value === VALID_PASS) {
+  if (VALID_USERS[loginUsername.value.trim()] === loginPassword.value) {
     buildCardDeck()
     phase.value = 'selection'
   } else {
@@ -1115,214 +1113,114 @@ function continentStyle(name) {
 
 const challengesByLang = {
   en: [
-    { emoji: '😄', text: 'Tell a joke you know — everyone must laugh!' },
-    { emoji: '🎤', text: 'Sing the first 15 seconds of your favourite song!' },
-    { emoji: '🌍', text: 'Name 5 capitals of European countries in 20 seconds!' },
-    { emoji: '💬', text: 'Give a sincere compliment to every player at the table.' },
-    { emoji: '🧠', text: 'Name 5 countries in Africa in 15 seconds!' },
-    { emoji: '🗺️', text: 'Describe a country without naming it — others guess!' },
-    { emoji: '📢', text: 'Give a speech about the most interesting country in the world — 30 seconds!' },
-    { emoji: '🏔️', text: 'Name 4 mountain ranges from different continents!' },
-    { emoji: '🌊', text: 'Name the 4 largest oceans and one interesting fact about one of them!' },
-    { emoji: '🗣️', text: 'Say "Hello, how are you?" in 4 different languages!' },
-    { emoji: '🧭', text: 'Name 3 rivers that flow through more than one country!' },
-    { emoji: '✈️', text: 'Name 5 famous tourist destinations in Asia!' },
-    { emoji: '🏛️', text: 'Name 3 UNESCO World Heritage Sites!' },
-    { emoji: '📖', text: 'Share an interesting fact about a country that few people know!' },
-    { emoji: '🎭', text: 'Imitate a famous world leader or historical figure — others guess who it is!' },
-    { emoji: '💡', text: 'Name 3 inventions that changed the world and the countries they came from!' },
-    { emoji: '🎯', text: 'Name 5 countries whose flag has a star on it!' },
-    { emoji: '🤝', text: 'Shake hands with every player and say one positive thing to each.' },
-    { emoji: '🌐', text: 'Explain the difference between a continent and a country — in one sentence!' },
-    { emoji: '🎵', text: 'Sing a national anthem or recognisable music from a country — others guess!' },
-    { emoji: '📊', text: 'Name the 3 most populous cities in the world!' },
-    { emoji: '🏆', text: 'Name who hosted the last three Olympic Games and in which cities!' },
-    { emoji: '🔤', text: 'Name as many countries starting with "K" as you can — you have 20 seconds!' },
-    { emoji: '🌴', text: 'Name 4 countries that are located on islands!' },
-    { emoji: '🎓', text: 'Explain why geography is important in modern life — you have 30 seconds!' },
-    { emoji: '🌺', text: 'Name the national symbol (plant or animal) of three different countries!' },
-    { emoji: '🧩', text: 'Which continent has no countries? Explain something about it!' },
-    { emoji: '⚽', text: 'Name 4 countries that have hosted the FIFA World Cup!' },
-    { emoji: '🗼', text: 'Name 5 famous architectural wonders and which countries they are in!' },
-    { emoji: '💰', text: 'Name the currencies of 4 different European countries!' },
-    { emoji: '📍', text: 'Which city has more people — Cairo or Lagos? Guess and explain why!' },
-    { emoji: '🤓', text: 'Name 3 Nobel Prize winners and what country they are from!' },
-    { emoji: '🌋', text: 'Name 3 famous volcanoes and which continent they are on!' },
-    { emoji: '🧊', text: 'Which is the only country entirely within the Arctic Circle? One try!' },
-    { emoji: '🦁', text: 'Name 4 African countries from memory, without repeating!' },
-    { emoji: '🏙️', text: 'Name 3 capitals that are NOT the largest city in their country!' },
-    { emoji: '🌞', text: 'Which country is known for the most sunshine hours? Explain!' },
-    { emoji: '🤔', text: 'Which two continents share the same landmass? (Eurasia) — explain!' },
-    { emoji: '🎪', text: 'Give a short presentation about a country — gestures only, no words!' },
-    { emoji: '🔢', text: 'How many countries does South America have? Try to name them all!' },
+    { emoji: '👁️', text: 'Stare at one spot and concentrate on it for 10 seconds without blinking!' },
+    { emoji: '😂', text: 'Laugh non-stop for 10 full seconds — no stopping allowed!' },
+    { emoji: '🦘', text: 'Jump 3 times in a row as high as you can!' },
+    { emoji: '🙌', text: 'Raise both arms up and hold them there for 10 seconds!' },
+    { emoji: '😌', text: 'Close your eyes for 10 seconds and breathe deeply — relax!' },
+    { emoji: '🏋️', text: 'Do 5 squats in a row — the whole group counts out loud!' },
+    { emoji: '👀', text: 'Look the person to your RIGHT in the eyes for 5 seconds — without saying the challenge out loud!' },
+    { emoji: '🎭', text: 'Speak in a funny accent for 1 full minute — no normal voice allowed!' },
+    { emoji: '🤳', text: 'Take the funniest selfie you can right now and show everyone!' },
+    { emoji: '💃', text: 'Quick dance! Show your funniest dance moves for 10–15 seconds — no words!' },
+    { emoji: '🎪', text: 'Imitate the person sitting next to you for 30 seconds — as funny as possible!' },
+    { emoji: '🔊', text: 'Make the funniest or weirdest sound you can — try to make everyone laugh!' },
+    { emoji: '💝', text: 'Give a creative and sincere compliment to the person next to you — no mistakes!' },
+    { emoji: '🎤', text: '1-minute stand-up! Tell a joke or a funny story as if you are on stage!' },
+    { emoji: '📜', text: 'Make up and recite a 4-line poem on any topic — you have 30 seconds!' },
+    { emoji: '🤫', text: 'Mime a famous person or animal — others guess who you are!' },
+    { emoji: '🔢', text: 'Count backwards from 50 to 30 as fast as you can!' },
+    { emoji: '🔤', text: 'Name 10 words starting with the same letter in 15 seconds!' },
+    { emoji: '🚶', text: 'Walk around the table like a robot — stiff and mechanical — for 15 seconds!' },
+    { emoji: '🎵', text: 'Hum a song without words for 15 seconds — others try to guess what song it is!' },
   ],
   sr: [
-    { emoji: '😄', text: 'Ispričaj vic koji znaš — svi moraju da se nasmiju!' },
-    { emoji: '🎤', text: 'Otpevaj prvih 15 sekundi omiljene pesme!' },
-    { emoji: '🌍', text: 'Nabrojati 5 glavnih gradova evropskih zemalja za 20 sekundi!' },
-    { emoji: '💬', text: 'Udeli iskreni kompliment svakom igraču za stolom.' },
-    { emoji: '🧠', text: 'Imenuj 5 zemalja u Africi za 15 sekundi!' },
-    { emoji: '🗺️', text: 'Opiši neku državu bez imenovanja — ostali pogađaju!' },
-    { emoji: '📢', text: 'Drži govor o najzanimljivijoj zemlji na svetu — 30 sekundi!' },
-    { emoji: '🏔️', text: 'Imenuj 4 planinska lanca s različitih kontinenata!' },
-    { emoji: '🌊', text: 'Imenuj 4 najveća okeana i jedan zanimljiv podatak o jednom od njih!' },
-    { emoji: '🗣️', text: 'Reci "Zdravo, kako si?" na 4 različita jezika!' },
-    { emoji: '🧭', text: 'Imenuj 3 reke koje teku kroz više od jedne države!' },
-    { emoji: '✈️', text: 'Reci 5 poznatih turističkih destinacija u Aziji!' },
-    { emoji: '🏛️', text: 'Imenuj 3 svjetska nasljeđa UNESCO-a!' },
-    { emoji: '📖', text: 'Ispričaj zanimljivost o nekoj zemlji koju malo ko zna!' },
-    { emoji: '🎭', text: 'Imitiraj poznatog svjetskog vođu ili istorijsku ličnost — ostali pogađaju ko je!' },
-    { emoji: '💡', text: 'Navedi 3 izuma ili pronalaska koji su promijenili svijet i državu iz koje dolaze!' },
-    { emoji: '🎯', text: 'Imenuj 5 zemalja čija zastava ima zvijezdu na njoj!' },
-    { emoji: '🤝', text: 'Rukuj se sa svim igračima i svakom reci jednu pozitivnu stvar.' },
-    { emoji: '🌐', text: 'Objasni razliku između kontinenta i države — u jednoj rečenici!' },
-    { emoji: '🎵', text: 'Otpevaj himnu ili prepoznatljiv dio muzike neke zemlje — ostali pogađaju!' },
-    { emoji: '📊', text: 'Imenuj 3 najmnogoljudnija grada na svijetu!' },
-    { emoji: '🏆', text: 'Reci ko je bio domaćin posljednja tri Olimpijska igra i u kojim gradovima!' },
-    { emoji: '🔤', text: 'Imenuj što više zemalja koje počinju na slovo "K" — imaš 20 sekundi!' },
-    { emoji: '🌴', text: 'Nabrojati 4 države koje se nalaze na otocima!' },
-    { emoji: '🎓', text: 'Objasni zašto je geografija važna u modernom životu — imaš 30 sekundi!' },
-    { emoji: '🌺', text: 'Reci koji je nacionalni simbol (biljka ili životinja) tri različite države!' },
-    { emoji: '🧩', text: 'Koji kontinent nema nijedne države? Objasni nešto o njemu!' },
-    { emoji: '⚽', text: 'Imenuj 4 države koje su bile domaćini FIFA Svjetskog Kupa!' },
-    { emoji: '🗼', text: 'Imenuj 5 čuvenih arhitektonskih čuda i u kojim se zemljama nalaze!' },
-    { emoji: '💰', text: 'Reci valute 4 različite evropske države!' },
-    { emoji: '📍', text: 'Koji grad ima više stanovnika — Kairo ili Lagos? Pogodi i objasni zašto!' },
-    { emoji: '🤓', text: 'Imenuj 3 nobelovca i iz koje su države!' },
-    { emoji: '🌋', text: 'Imenuj 3 poznata vulkana i na kom su kontinentu!' },
-    { emoji: '🧊', text: 'Koja je jedina država u potpunosti na Arktičkom krugu? Imaš jedan pokušaj!' },
-    { emoji: '🦁', text: 'Nabrojati 4 afričke države po sjećanju, bez ponavljanja!' },
-    { emoji: '🏙️', text: 'Imenuj 3 prijestolnice koje NISU najveći grad te države!' },
-    { emoji: '🌞', text: 'Koja je zemlja poznata po najvećem broju sunčanih sati? Obrazloži!' },
-    { emoji: '🤔', text: 'Koja dva kontinenta dijele isti kopneni masiv? (Euroazija) — objasni!' },
-    { emoji: '🎪', text: 'Napravi kratku prezentaciju o jednoj državi — samo gestama, bez riječi!' },
-    { emoji: '🔢', text: 'Koliko država ima Južna Amerika? Pokušaj da ih sve imenuje!' },
+    { emoji: '👁️', text: 'Pogledaj u jednu tačku i koncentriši se na nju 10 sekundi bez treptanja!' },
+    { emoji: '😂', text: 'Smej se bez prestanka punih 10 sekundi — zaustavljanje nije dozvoljeno!' },
+    { emoji: '🦘', text: 'Skoči 3 puta uzastopno što više možeš!' },
+    { emoji: '🙌', text: 'Ispruži obe ruke u vis i zadrži ih 10 sekundi!' },
+    { emoji: '😌', text: 'Zažmuri 10 sekundi i diši duboko — opusti se!' },
+    { emoji: '🏋️', text: 'Uradi 5 čučnjeva uzastopno — cela grupa broji naglas!' },
+    { emoji: '👀', text: 'Pogledaj osobu koja je desno od tebe 5 sekundi u oči — bez da naglas pročitaš izazov!' },
+    { emoji: '🎭', text: 'Govori smešnim akcentom 1 pun minut — normalan glas nije dozvoljen!' },
+    { emoji: '🤳', text: 'Napravi najsmešniji selfi odmah i pokaži svima!' },
+    { emoji: '💃', text: 'Brzi ples! Pokaži svoje najsmešnije plesne poteze 10–15 sekundi — bez reči!' },
+    { emoji: '🎪', text: 'Imitiraj osobu koja sedi pored tebe 30 sekundi — što smešnije!' },
+    { emoji: '🔊', text: 'Napravi što smešniji ili neobičniji zvuk — pokušaj da nasmešiš sve!' },
+    { emoji: '💝', text: 'Daj kreativan i iskren kompliment osobi pored tebe — bez greške!' },
+    { emoji: '🎤', text: 'Jednominutni stand-up! Ispričaj vic ili smešnu priču kao da si na bini!' },
+    { emoji: '📜', text: 'Smisli i recituj pesmu od 4 stiha na zadatu temu — imaš 30 sekundi!' },
+    { emoji: '🤫', text: 'Pantomima — oponašaj poznatu osobu ili životinju dok drugi pogađaju ko si!' },
+    { emoji: '🔢', text: 'Nabroj unazad od 50 do 30 što brže možeš!' },
+    { emoji: '🔤', text: 'Nabroj 10 reči koje počinju istim slovom u roku od 15 sekundi!' },
+    { emoji: '🚶', text: 'Prošetaj oko stola kao robot — ukočeno i mehanički — 15 sekundi!' },
+    { emoji: '🎵', text: 'Zanasaj pesmu bez reči 15 sekundi — ostali pokušavaju da pogode koja je!' },
   ],
   ru: [
-    { emoji: '😄', text: 'Расскажи анекдот — все должны засмеяться!' },
-    { emoji: '🎤', text: 'Спой первые 15 секунд любимой песни!' },
-    { emoji: '🌍', text: 'Назови 5 столиц европейских стран за 20 секунд!' },
-    { emoji: '💬', text: 'Сделай искренний комплимент каждому игроку за столом.' },
-    { emoji: '🧠', text: 'Назови 5 стран Африки за 15 секунд!' },
-    { emoji: '🗺️', text: 'Опиши страну, не называя её — остальные угадывают!' },
-    { emoji: '📢', text: 'Произнеси речь о самой интересной стране мира — 30 секунд!' },
-    { emoji: '🏔️', text: 'Назови 4 горных хребта с разных континентов!' },
-    { emoji: '🌊', text: 'Назови 4 крупнейших океана и один интересный факт об одном из них!' },
-    { emoji: '🗣️', text: 'Скажи «Привет, как дела?» на 4 разных языках!' },
-    { emoji: '🧭', text: 'Назови 3 реки, текущие через несколько стран!' },
-    { emoji: '✈️', text: 'Назови 5 известных туристических направлений в Азии!' },
-    { emoji: '🏛️', text: 'Назови 3 объекта Всемирного наследия ЮНЕСКО!' },
-    { emoji: '📖', text: 'Расскажи интересный факт о стране, который мало кто знает!' },
-    { emoji: '🎭', text: 'Изобрази мирового лидера или историческую личность — остальные угадывают!' },
-    { emoji: '💡', text: 'Назови 3 изобретения, изменивших мир, и страны, откуда они пришли!' },
-    { emoji: '🎯', text: 'Назови 5 стран, на флаге которых есть звезда!' },
-    { emoji: '🤝', text: 'Пожми руку каждому игроку и скажи каждому что-то положительное.' },
-    { emoji: '🌐', text: 'Объясни разницу между континентом и государством — в одном предложении!' },
-    { emoji: '🎵', text: 'Спой гимн или узнаваемую мелодию какой-либо страны — остальные угадывают!' },
-    { emoji: '📊', text: 'Назови 3 самых густонаселённых города мира!' },
-    { emoji: '🏆', text: 'Скажи, кто принимал последние три Олимпийские игры и в каких городах!' },
-    { emoji: '🔤', text: 'Назови как можно больше стран на букву «К» — у тебя 20 секунд!' },
-    { emoji: '🌴', text: 'Назови 4 страны, расположенные на островах!' },
-    { emoji: '🎓', text: 'Объясни, почему география важна в современной жизни — у тебя 30 секунд!' },
-    { emoji: '🌺', text: 'Назови национальный символ (растение или животное) трёх разных стран!' },
-    { emoji: '🧩', text: 'Какой континент не имеет ни одной страны? Расскажи о нём что-нибудь!' },
-    { emoji: '⚽', text: 'Назови 4 страны, принимавшие чемпионат мира по футболу ФИФА!' },
-    { emoji: '🗼', text: 'Назови 5 известных архитектурных чудес и в каких странах они находятся!' },
-    { emoji: '💰', text: 'Назови валюты 4 разных европейских стран!' },
-    { emoji: '📍', text: 'В каком городе больше жителей — Каире или Лагосе? Угадай и объясни!' },
-    { emoji: '🤓', text: 'Назови 3 нобелевских лауреата и из каких они стран!' },
-    { emoji: '🌋', text: 'Назови 3 известных вулкана и на каком они континенте!' },
-    { emoji: '🧊', text: 'Какая единственная страна полностью за Полярным кругом? Одна попытка!' },
-    { emoji: '🦁', text: 'Назови 4 африканские страны по памяти, не повторяясь!' },
-    { emoji: '🏙️', text: 'Назови 3 столицы, которые НЕ являются крупнейшим городом своей страны!' },
-    { emoji: '🌞', text: 'Какая страна известна наибольшим числом солнечных часов? Объясни!' },
-    { emoji: '🤔', text: 'Какие два континента делят один массив суши? (Евразия) — объясни!' },
-    { emoji: '🎪', text: 'Представь страну — только жестами, без слов!' },
-    { emoji: '🔢', text: 'Сколько стран в Южной Америке? Попробуй назвать их все!' },
+    { emoji: '👁️', text: 'Посмотри в одну точку и сконцентрируйся на ней 10 секунд без моргания!' },
+    { emoji: '😂', text: 'Смейся без остановки ровно 10 секунд — останавливаться нельзя!' },
+    { emoji: '🦘', text: 'Прыгни 3 раза подряд как можно выше!' },
+    { emoji: '🙌', text: 'Подними обе руки вверх и держи их 10 секунд!' },
+    { emoji: '😌', text: 'Закрой глаза на 10 секунд и дыши глубоко — расслабься!' },
+    { emoji: '🏋️', text: 'Сделай 5 приседаний подряд — вся группа считает вслух!' },
+    { emoji: '👀', text: 'Посмотри человеку справа от тебя в глаза 5 секунд — не произнося задание вслух!' },
+    { emoji: '🎭', text: 'Говори смешным акцентом 1 полную минуту — нормальный голос запрещён!' },
+    { emoji: '🤳', text: 'Сделай самое смешное селфи прямо сейчас и покажи всем!' },
+    { emoji: '💃', text: 'Быстрый танец! Покажи свои самые смешные движения 10–15 секунд — без слов!' },
+    { emoji: '🎪', text: 'Изображай человека рядом с тобой 30 секунд — как можно смешнее!' },
+    { emoji: '🔊', text: 'Издай самый смешной или необычный звук — попробуй рассмешить всех!' },
+    { emoji: '💝', text: 'Сделай креативный и искренний комплимент человеку рядом — без ошибок!' },
+    { emoji: '🎤', text: 'Одноминутный стэндап! Расскажи анекдот или смешную историю как на сцене!' },
+    { emoji: '📜', text: 'Придумай и прочитай стихотворение из 4 строк на любую тему — 30 секунд!' },
+    { emoji: '🤫', text: 'Пантомима — изображай известного человека или животное, пока другие угадывают!' },
+    { emoji: '🔢', text: 'Считай в обратном порядке от 50 до 30 как можно быстрее!' },
+    { emoji: '🔤', text: 'Назови 10 слов, начинающихся на одну букву, за 15 секунд!' },
+    { emoji: '🚶', text: 'Пройди вокруг стола как робот — скованно и механически — 15 секунд!' },
+    { emoji: '🎵', text: 'Напой песню без слов 15 секунд — остальные пытаются угадать что это!' },
   ],
   tr: [
-    { emoji: '😄', text: 'Bildiğin bir fıkra anlat — herkes gülmeli!' },
-    { emoji: '🎤', text: 'En sevdiğin şarkının ilk 15 saniyesini söyle!' },
-    { emoji: '🌍', text: '20 saniyede 5 Avrupa ülkesinin başkentini say!' },
-    { emoji: '💬', text: 'Masadaki her oyuncuya samimi bir iltifat yap.' },
-    { emoji: '🧠', text: '15 saniyede Afrika\'da 5 ülke say!' },
-    { emoji: '🗺️', text: 'Bir ülkeyi adını söylemeden tanımla — diğerleri tahmin eder!' },
-    { emoji: '📢', text: 'Dünyanın en ilginç ülkesi hakkında konuşma yap — 30 saniye!' },
-    { emoji: '🏔️', text: 'Farklı kıtalardan 4 dağ sırası say!' },
-    { emoji: '🌊', text: '4 büyük okyanusu say ve birinden ilginç bir bilgi söyle!' },
-    { emoji: '🗣️', text: '4 farklı dilde "Merhaba, nasılsın?" de!' },
-    { emoji: '🧭', text: 'Birden fazla ülkeden geçen 3 nehir say!' },
-    { emoji: '✈️', text: 'Asya\'da 5 ünlü turistik destinasyon say!' },
-    { emoji: '🏛️', text: '3 UNESCO Dünya Mirası Alanı say!' },
-    { emoji: '📖', text: 'Çok az kişinin bildiği bir ülke hakkında ilginç bir gerçek paylaş!' },
-    { emoji: '🎭', text: 'Ünlü bir dünya liderini taklit et — diğerleri kim olduğunu tahmin eder!' },
-    { emoji: '💡', text: 'Dünyayı değiştiren 3 icat ve bunların geldiği ülkeleri say!' },
-    { emoji: '🎯', text: 'Bayrağında yıldız bulunan 5 ülke say!' },
-    { emoji: '🤝', text: 'Her oyuncuyla el sık ve her birine olumlu bir şey söyle.' },
-    { emoji: '🌐', text: 'Kıta ile ülke arasındaki farkı bir cümlede açıkla!' },
-    { emoji: '🎵', text: 'Bir ülkenin marşını söyle — diğerleri hangi ülke olduğunu tahmin eder!' },
-    { emoji: '📊', text: 'Dünyanın en kalabalık 3 şehrini say!' },
-    { emoji: '🏆', text: 'Son üç Olimpiyat Oyunları\'na hangi şehirlerin ev sahipliği yaptığını söyle!' },
-    { emoji: '🔤', text: '"K" harfiyle başlayan mümkün olduğunca çok ülke say — 20 sanijen var!' },
-    { emoji: '🌴', text: 'Adalarda bulunan 4 ülke say!' },
-    { emoji: '🎓', text: 'Coğrafyanın modern hayatta neden önemli olduğunu açıkla — 30 sanijen var!' },
-    { emoji: '🌺', text: 'Üç farklı ülkenin ulusal sembolünü (bitki veya hayvan) söyle!' },
-    { emoji: '🧩', text: 'Hangi kıtanın hiç ülkesi yok? Onun hakkında bir şey anlat!' },
-    { emoji: '⚽', text: 'FIFA Dünya Kupası\'na ev sahipliği yapan 4 ülke say!' },
-    { emoji: '🗼', text: '5 ünlü mimari harikayı ve hangi ülkelerde olduklarını say!' },
-    { emoji: '💰', text: '4 farklı Avrupa ülkesinin para birimlerini söyle!' },
-    { emoji: '📍', text: 'Kahire mi Lagos mu daha kalabalık? Tahmin et ve neden olduğunu açıkla!' },
-    { emoji: '🤓', text: '3 Nobel ödüllüyü ve hangi ülkeden olduklarını say!' },
-    { emoji: '🌋', text: '3 ünlü yanardağı ve hangi kıtada olduklarını say!' },
-    { emoji: '🧊', text: 'Kuzey Kutup Dairesi\'nin tamamında olan tek ülke hangisi? Bir hakkın var!' },
-    { emoji: '🦁', text: 'Hafızandan 4 Afrika ülkesi say, tekrar etmeden!' },
-    { emoji: '🏙️', text: 'Kendi ülkelerinin en büyük şehri OLMAYAN 3 başkent say!' },
-    { emoji: '🌞', text: 'En fazla güneşli saatiyle bilinen ülke hangisi? Açıkla!' },
-    { emoji: '🤔', text: 'Hangi iki kıta aynı kara kütlesini paylaşıyor? (Avrasya) — açıkla!' },
-    { emoji: '🎪', text: 'Bir ülke hakkında kısa sunum yap — sadece jestlerle, kelimesiz!' },
-    { emoji: '🔢', text: 'Güney Amerika\'da kaç ülke var? Hepsini saymaya çalış!' },
+    { emoji: '👁️', text: 'Bir noktaya bak ve 10 saniye boyunca ona odaklan — göz kırpmadan!' },
+    { emoji: '😂', text: 'Tam 10 saniye durmadan gül — durmak yasak!' },
+    { emoji: '🦘', text: 'Art arda 3 kez mümkün olduğunca yükseğe zıpla!' },
+    { emoji: '🙌', text: 'Her iki kolunu yukarı kaldır ve 10 saniye öyle tut!' },
+    { emoji: '😌', text: '10 saniye gözlerini kapat ve derin nefes al — rahatla!' },
+    { emoji: '🏋️', text: 'Art arda 5 squat yap — grup yüksek sesle sayar!' },
+    { emoji: '👀', text: 'Sağındaki kişinin gözlerine 5 saniye bak — görevi yüksek sesle okumadan!' },
+    { emoji: '🎭', text: 'Tam 1 dakika komik bir aksanla konuş — normal ses yasak!' },
+    { emoji: '🤳', text: 'Şu anda mümkün olan en komik selfie\'yi çek ve herkese göster!' },
+    { emoji: '💃', text: 'Hızlı dans! En komik dans hareketlerini 10–15 saniye göster — sözsüz!' },
+    { emoji: '🎪', text: 'Yanındaki kişiyi 30 saniye taklit et — olabildiğince komik!' },
+    { emoji: '🔊', text: 'En komik veya en tuhaf sesi çıkar — herkesi güldürmeye çalış!' },
+    { emoji: '💝', text: 'Yanındaki kişiye yaratıcı ve samimi bir iltifat söyle — hatasız!' },
+    { emoji: '🎤', text: '1 dakikalık stand-up! Sahnedeymiş gibi bir fıkra veya komik hikaye anlat!' },
+    { emoji: '📜', text: 'Herhangi bir konuda 4 satırlık bir şiir yaz ve oku — 30 saniye var!' },
+    { emoji: '🤫', text: 'Pantomim — ünlü birini veya hayvanı taklit et, diğerleri kim olduğunu tahmin etsin!' },
+    { emoji: '🔢', text: 'Mümkün olduğunca hızlı 50\'den 30\'a kadar geri say!' },
+    { emoji: '🔤', text: '15 saniyede aynı harfle başlayan 10 kelime say!' },
+    { emoji: '🚶', text: 'Masanın etrafında robot gibi yürü — sert ve mekanik — 15 saniye!' },
+    { emoji: '🎵', text: '15 saniye boyunca sözsüz bir şarkı söyle — diğerleri ne olduğunu tahmin etsin!' },
   ],
   lv: [
-    { emoji: '😄', text: 'Pastāsti joku, ko zini — visiem jāsmajas!' },
-    { emoji: '🎤', text: 'Nodziedā savas mīļākās dziesmas pirmās 15 sekundes!' },
-    { emoji: '🌍', text: 'Nosaki 5 Eiropas valstu galvaspilsētas 20 sekundēs!' },
-    { emoji: '💬', text: 'Dod sirsnīgu komplimentu katram spēlētājam pie galda.' },
-    { emoji: '🧠', text: 'Nosaki 5 Āfrikas valstis 15 sekundēs!' },
-    { emoji: '🗺️', text: 'Apraksti kādu valsti, neminot tās nosaukumu — pārējie min!' },
-    { emoji: '📢', text: 'Uztur runu par interesantāko valsti pasaulē — 30 sekundes!' },
-    { emoji: '🏔️', text: 'Nosaki 4 kalnu grēdas no dažādiem kontinentiem!' },
-    { emoji: '🌊', text: 'Nosaki 4 lielākos okeānus un vienu interesantu faktu par kādu no tiem!' },
-    { emoji: '🗣️', text: 'Pasaki "Sveiki, kā jums klājas?" 4 dažādās valodās!' },
-    { emoji: '🧭', text: 'Nosaki 3 upes, kas tek caur vairākām valstīm!' },
-    { emoji: '✈️', text: 'Nosaki 5 slavenas tūrisma galamērķus Āzijā!' },
-    { emoji: '🏛️', text: 'Nosaki 3 UNESCO Pasaules mantojuma vietas!' },
-    { emoji: '📖', text: 'Pastāsti interesantu faktu par kādu valsti, ko maz kas zina!' },
-    { emoji: '🎭', text: 'Atdarini slavenu pasaules vadītāju vai vēsturisku personību — pārējie min!' },
-    { emoji: '💡', text: 'Nosaki 3 izgudrojumus, kas mainīja pasauli, un valstis, no kurām tie nāk!' },
-    { emoji: '🎯', text: 'Nosaki 5 valstis, kuru karogā ir zvaigzne!' },
-    { emoji: '🤝', text: 'Paspiedi roku katram spēlētājam un katram pasaki kaut ko pozitīvu.' },
-    { emoji: '🌐', text: 'Paskaidro atšķirību starp kontinentu un valsti — vienā teikumā!' },
-    { emoji: '🎵', text: 'Nodziedā kādas valsts himnu — pārējie min, kura valsts!' },
-    { emoji: '📊', text: 'Nosaki 3 apdzīvotākās pilsētas pasaulē!' },
-    { emoji: '🏆', text: 'Pasaki, kuras pilsētas uzņēma pēdējās trīs Olimpiskās spēles!' },
-    { emoji: '🔤', text: 'Nosaki pēc iespējas vairāk valstu ar burtu "K" — tev ir 20 sekundes!' },
-    { emoji: '🌴', text: 'Nosaki 4 valstis, kas atrodas uz salām!' },
-    { emoji: '🎓', text: 'Paskaidro, kāpēc ģeogrāfija ir svarīga mūsdienās — tev ir 30 sekundes!' },
-    { emoji: '🌺', text: 'Nosaki trīs dažādu valstu nacionālo simbolu (augs vai dzīvnieks)!' },
-    { emoji: '🧩', text: 'Kurš kontinents nav nevienas valsts? Pastāsti kaut ko par to!' },
-    { emoji: '⚽', text: 'Nosaki 4 valstis, kas uzņēmušas FIFA Pasaules kausu!' },
-    { emoji: '🗼', text: 'Nosaki 5 slavenas arhitektūras brīnumus un kurās valstīs tie atrodas!' },
-    { emoji: '💰', text: 'Nosaki 4 dažādu Eiropas valstu valūtas!' },
-    { emoji: '📍', text: 'Kurā pilsētā vairāk iedzīvotāju — Kairā vai Lagosā? Uzmin un paskaidro!' },
-    { emoji: '🤓', text: 'Nosaki 3 Nobela prēmijas laureātus un no kurām valstīm viņi ir!' },
-    { emoji: '🌋', text: 'Nosaki 3 slavenos vulkānus un uz kura kontinenta tie atrodas!' },
-    { emoji: '🧊', text: 'Kura valsts pilnībā atrodas Arktiskajā lokā? Tev ir viens mēģinājums!' },
-    { emoji: '🦁', text: 'Nosaki 4 Āfrikas valstis no atmiņas, neatkārtojoties!' },
-    { emoji: '🏙️', text: 'Nosaki 3 galvaspilsētas, kas NAV savas valsts lielākā pilsēta!' },
-    { emoji: '🌞', text: 'Kura valsts ir pazīstama ar vislielāko saules stundu skaitu? Paskaidro!' },
-    { emoji: '🤔', text: 'Kuri divi kontinenti dala vienu sauszemes masu? (Eirāzija) — paskaidro!' },
-    { emoji: '🎪', text: 'Prezentē kādu valsti — tikai ar žestiem, bez vārdiem!' },
-    { emoji: '🔢', text: 'Cik valstu ir Dienvidamerikā? Mēģini nosaukt tās visas!' },
+    { emoji: '👁️', text: 'Skaties uz vienu punktu un koncentrējies uz to 10 sekundes — nemirkstinoties!' },
+    { emoji: '😂', text: 'Smejies bez apstāšanās pilnas 10 sekundes — apstāties ir aizliegts!' },
+    { emoji: '🦘', text: 'Lēc 3 reizes pēc kārtas cik augstu vari!' },
+    { emoji: '🙌', text: 'Pacel abas rokas augšup un turi tās 10 sekundes!' },
+    { emoji: '😌', text: 'Aizver acis uz 10 sekundēm un elpo dziļi — atpūties!' },
+    { emoji: '🏋️', text: 'Dari 5 pietupienus pēc kārtas — visa grupa skaita skaļi!' },
+    { emoji: '👀', text: 'Skaties cilvēkam pa labi no tevis acīs 5 sekundes — neskaļi lasot uzdevumu!' },
+    { emoji: '🎭', text: 'Runā smieklīgā akcentā 1 pilnu minūti — normāla balss ir aizliegta!' },
+    { emoji: '🤳', text: 'Uzņem pašbildi ar vissmiekligāko izteiksmi tūlīt un rādi visiem!' },
+    { emoji: '💃', text: 'Ātrā deja! Parādi savus smieklīgākos dejas gājienus 10–15 sekundes — bez vārdiem!' },
+    { emoji: '🎪', text: 'Atdarini blakus sēdošo cilvēku 30 sekundes — cik smieklīgi var!' },
+    { emoji: '🔊', text: 'Izdod vispārsteidzošāko vai smieklīgāko skaņu — mēģini likt visiem smieties!' },
+    { emoji: '💝', text: 'Pasaki radošu un patiesu komplimentu blakus esošajam — bez kļūdām!' },
+    { emoji: '🎤', text: '1 minūtes stand-up! Pastāsti joku vai smieklīgu stāstu kā uz skatuves!' },
+    { emoji: '📜', text: 'Izdomā un nolasi 4 rindu dzejoli par jebkuru tēmu — 30 sekundes!' },
+    { emoji: '🤫', text: 'Pantomīma — atdarini slavenu personu vai dzīvnieku, citi min kas tu esi!' },
+    { emoji: '🔢', text: 'Skaitiet no 50 līdz 30 atpakaļ cik ātri vien var!' },
+    { emoji: '🔤', text: 'Nosaki 10 vārdus, kas sākas ar vienu un to pašu burtu, 15 sekundēs!' },
+    { emoji: '🚶', text: 'Apstaigā galdu kā robots — stīvs un mehānisks — 15 sekundes!' },
+    { emoji: '🎵', text: 'Nūāc dziesmu bez vārdiem 15 sekundes — pārējie mēģina uzminēt kāda tā ir!' },
   ],
 }
 
@@ -1367,7 +1265,7 @@ const puzzleCorrect        = ref(null)
 // ─── PUZZLE IMAGES ───────────────────────────────────────────────────────────
 // Slike se nalaze u public/assets/ folder
 const puzzleImages = {
-  'Europa':          ['/assets/eu1.png', '/assets/eu4.png', '/assets/eu3.png', '/assets/eu2.png'],
+  'Europa':          ['/assets/eu1.png', '/assets/eu2.png', '/assets/eu3.png', '/assets/eu4.png'],
   'Australija':      ['/assets/au1.png', '/assets/au2.png', '/assets/au3.png', '/assets/au4.png'],
   'Afrika':          ['/assets/af1.png', '/assets/af2.png', '/assets/af3.png', '/assets/af4.png'],
   'Južna Amerika':   ['/assets/ja1.png', '/assets/ja2.png', '/assets/ja3.png', '/assets/ja4.png'],
@@ -1499,7 +1397,7 @@ const continentPaths = {
 }
 
 const continentColors = {
-  'Europa':          '#3f51b5',
+  'ropa':          '#3f51b5',
   'Azija':           '#e53935',
   'Afrika':          '#fb8c00',
   'Severna Amerika': '#43a047',
@@ -1512,17 +1410,9 @@ function quadrantViewBox(slotIdx) {
   return ['0 0 100 75', '100 0 100 75', '0 75 100 75', '100 75 100 75'][slotIdx]
 }
 
-// Piece label: Top / Middle / Bottom (for finale 3-piece) or NW/NE/SW/SE (4-piece)
-const pieceLabelKeys4 = ['pieceNW', 'pieceNE', 'pieceSW', 'pieceSE']
-const pieceLabelKeys3 = ['pieceTop', 'pieceMid', 'pieceBot']
-function getPieceLabel(idx) {
-  if (isFinale.value) return t(pieceLabelKeys3[idx] ?? pieceLabelKeys3[0])
-  return t(pieceLabelKeys4[idx] ?? pieceLabelKeys4[0])
-}
-
-// Dynamic slot helpers based on whether we are in finale (3 pieces) or regular (4 pieces)
-const puzzleTotalSlots = computed(() => isFinale.value ? 3 : 4)
-const puzzleSlotIndices = computed(() => isFinale.value ? [0, 1, 2] : [0, 1, 2, 3])
+// Piece label: NW / NE / SW / SE in the active language
+const pieceLabelKeys = ['pieceNW', 'pieceNE', 'pieceSW', 'pieceSE']
+function getPieceLabel(idx) { return t(pieceLabelKeys[idx]) }
 
 // Puzzle functions
 function openPuzzle() {
@@ -1533,10 +1423,9 @@ function openPuzzle() {
   const empty = puzzlePlacedSlots.value
     .map((v, i) => (v ? null : i)).filter(i => i !== null)
 
-  const total = puzzleTotalSlots.value
   if (empty.length === 0) {
     // Should not normally happen (handled in selectPuzzlePiece), but reset as safety
-    puzzlePlacedSlots.value = new Array(total).fill(false)
+    puzzlePlacedSlots.value = [false, false, false, false]
     advanceQuestion()
     return
   }
@@ -1546,7 +1435,8 @@ function openPuzzle() {
   puzzleCorrect.value       = null
 
   // Shuffle piece buttons
-  const arr = Array.from({ length: total }, (_, i) => i)
+  const pieceCount = isFinale.value ? 3 : 4
+  const arr = Array.from({ length: pieceCount }, (_, i) => i)
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]]
@@ -1566,7 +1456,7 @@ function startFinaleQuiz() {
   showChallengeCard.value     = false
   usedChallengeIndices.value  = []
   currentChallengeIndex.value = -1
-  puzzlePlacedSlots.value     = [false, false, false]
+  puzzlePlacedSlots.value     = [false, false, false]  // 3 pieces for finale
   puzzleCorrect.value         = null
   showPuzzleModal.value       = false
   showFinaleWinner.value      = false
@@ -1734,19 +1624,20 @@ onMounted(() => { buildCardDeck() })
 }
 .puzzle-grid {
   display: grid;
-}
-/* 4-piece: 2×2 landscape */
-.puzzle-grid-4 {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   aspect-ratio: 4 / 3;
 }
-/* 3-piece: 1×3 portrait (A4 format) */
+/* 3-piece layout for finale: 3 pieces stacked vertically */
 .puzzle-grid-3 {
+  display: grid;
   grid-template-columns: 1fr;
   grid-template-rows: 1fr 1fr 1fr;
-  aspect-ratio: 1 / 1.5;
-  max-height: 55vh;
+  aspect-ratio: 3 / 4;
+  max-height: 320px;
+}
+.puzzle-grid-3 > :nth-child(3) {
+  grid-column: unset;
 }
 .puzzle-cell {
   position: relative;
@@ -1819,27 +1710,21 @@ onMounted(() => { buildCardDeck() })
   border-top: 1px dashed var(--border);
   background: none;
 }
-/* 3-piece mode: two horizontal dividers at 33% and 66% */
-.puzzle-divider-h1 {
-  left: 0; right: 0; top: 33.33%;
-  height: 1px;
-  transform: translateY(-50%);
-  border-top: 1px dashed var(--border);
-  background: none;
-}
-.puzzle-divider-h2 {
-  left: 0; right: 0; top: 66.66%;
-  height: 1px;
-  transform: translateY(-50%);
-  border-top: 1px dashed var(--border);
-  background: none;
-}
 .puzzle-divider-v {
   top: 0; bottom: 0; left: 50%;
   width: 1px;
   transform: translateX(-50%);
   border-left: 1px dashed var(--border);
   background: none;
+}
+/* Finale: 3 vertical pieces — dividers at 33% and 66% */
+.puzzle-divider-h-3a {
+  top: 33.33% !important;
+  transform: none !important;
+}
+.puzzle-divider-h-3b {
+  top: 66.66% !important;
+  transform: none !important;
 }
 
 /* Instruction text */
@@ -1853,13 +1738,8 @@ onMounted(() => { buildCardDeck() })
 /* Piece options */
 .puzzle-pieces {
   display: grid;
-  gap: 10px;
-}
-.puzzle-pieces-4 {
   grid-template-columns: repeat(4, 1fr);
-}
-.puzzle-pieces-3 {
-  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 .puzzle-piece-btn {
   display: flex;
