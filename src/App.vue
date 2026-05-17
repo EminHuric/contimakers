@@ -2042,7 +2042,7 @@ onMounted(() => { buildCardDeck() })
   filter: drop-shadow(0 0 18px rgba(255,196,0,.35));
 }
 .landing-title {
-  font-size: 2.6rem;
+  font-size: 2rem;
   font-weight: 900;
   letter-spacing: .2em;
   background: linear-gradient(135deg, var(--gold), #fff, var(--gold));
@@ -2050,6 +2050,7 @@ onMounted(() => { buildCardDeck() })
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
+  max-width: 100%;
 }
 .landing-lang-row {
   display: flex;
