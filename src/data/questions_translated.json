@@ -7896,7 +7896,7 @@
       "lv": {
         "language": "lv",
         "continent": "Australija",
-        "question": "Kurā Okeānijas valstī ir visvairāk salu?",
+        "question": "Kurā Okeānijas valstī ir visvairāk salu?", 
         "correct": "Filipīnas",
         "wrong": [
           "Indonēzija",

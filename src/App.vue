@@ -354,23 +354,23 @@
           <!-- Header -->
           <div class="puzzle-header">
             <span class="puzzle-badge">🧩 {{ t('puzzleLabel') }}</span>
-            <span class="puzzle-continent-name">{{ translateContinent(activeContinent) }}</span>
+            <span class="puzzle-continent-name">{{ isFinale ? (finaleCountry === 'gb' ? t('finaleGB') : t('finaleSerbia')) : translateContinent(activeContinent) }}</span>
           </div>
 
           <!-- Progress dots -->
           <div class="puzzle-progress-row">
             <span class="puzzle-progress-label">{{ t('puzzleProgress') }}</span>
             <div class="puzzle-dots">
-              <div v-for="i in 4" :key="i" class="puzzle-dot"
+              <div v-for="i in puzzleTotalSlots" :key="i" class="puzzle-dot"
                 :class="{ placed: puzzlePlacedSlots[i-1], target: (i-1) === puzzleTargetSlot && !puzzlePlacedSlots[i-1] }">
               </div>
             </div>
           </div>
 
-          <!-- Continent board: 2x2 grid -->
+          <!-- Continent board: dynamic grid -->
           <div class="puzzle-board">
-            <div class="puzzle-grid">
-              <div v-for="slotIdx in [0,1,2,3]" :key="slotIdx"
+            <div class="puzzle-grid" :class="isFinale ? 'puzzle-grid-3' : 'puzzle-grid-4'">
+              <div v-for="slotIdx in puzzleSlotIndices" :key="slotIdx"
                 class="puzzle-cell"
                 :class="{
                   'cell-placed':  puzzlePlacedSlots[slotIdx] || (slotIdx === puzzleTargetSlot && puzzleCorrect === true),
@@ -393,15 +393,21 @@
               </div>
             </div>
             <!-- Divider lines overlay -->
-            <div class="puzzle-divider-h"></div>
-            <div class="puzzle-divider-v"></div>
+            <template v-if="isFinale">
+              <div class="puzzle-divider-h puzzle-divider-h1"></div>
+              <div class="puzzle-divider-h puzzle-divider-h2"></div>
+            </template>
+            <template v-else>
+              <div class="puzzle-divider-h"></div>
+              <div class="puzzle-divider-v"></div>
+            </template>
           </div>
 
           <!-- Instruction -->
           <p class="puzzle-instruction">{{ t('puzzleInstruction') }}</p>
 
           <!-- Piece options -->
-          <div class="puzzle-pieces">
+          <div class="puzzle-pieces" :class="isFinale ? 'puzzle-pieces-3' : 'puzzle-pieces-4'">
             <button v-for="pieceIdx in puzzleShuffledPieces" :key="pieceIdx"
               class="puzzle-piece-btn"
               :class="{
@@ -424,6 +430,78 @@
               <span>{{ puzzleCorrect ? t('puzzleSuccess') : '❌ ' + t('wrongAnswer') }}</span>
             </div>
           </Transition>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ░░ FINALE ░░ -->
+    <Transition name="page">
+      <div v-if="phase === 'finale'" class="main-root finale-root" key="finale">
+        <header class="top-bar">
+          <button class="logo-mark" @click="returnToMap">
+            <svg class="mark-globe" viewBox="0 0 100 100" fill="none">
+              <circle cx="50" cy="50" r="46" stroke="currentColor" stroke-width="3"/>
+              <ellipse cx="50" cy="50" rx="22" ry="46" stroke="currentColor" stroke-width="2"/>
+              <path d="M4 50 Q25 38 50 50 Q75 62 96 50" stroke="currentColor" stroke-width="1.8"/>
+              <circle cx="50" cy="50" r="4" fill="var(--gold)"/>
+            </svg>
+            <span class="mark-name">CONTIMAKERS</span>
+          </button>
+          <div class="bar-langs">
+            <button v-for="l in languages" :key="l.code" class="bar-lang"
+              :class="{ active: currentLang === l.code }"
+              @click="currentLang = l.code" :title="l.name">{{ l.flag }}</button>
+          </div>
+        </header>
+
+        <div class="finale-area">
+          <div class="finale-trophy-anim">🏆</div>
+          <h1 class="finale-title-text">{{ t('finaleTitle') }}</h1>
+          <p class="finale-subtitle-text">{{ t('finaleSubtitle') }}</p>
+
+          <div class="finale-cards-row">
+            <!-- GB Card -->
+            <button class="finale-country-card" :class="{ 'finale-card-selected': finaleCountry === 'gb' }"
+              @click="finaleCountry = 'gb'">
+              <div class="finale-card-flag">🇬🇧</div>
+              <div class="finale-card-name">{{ t('finaleGB') }}</div>
+              <div v-if="finaleCountry === 'gb'" class="finale-card-check">✓</div>
+            </button>
+
+            <!-- Serbia Card -->
+            <button class="finale-country-card" :class="{ 'finale-card-selected': finaleCountry === 'serbia' }"
+              @click="finaleCountry = 'serbia'">
+              <div class="finale-card-flag">🇷🇸</div>
+              <div class="finale-card-name">{{ t('finaleSerbia') }}</div>
+              <div v-if="finaleCountry === 'serbia'" class="finale-card-check">✓</div>
+            </button>
+          </div>
+
+          <Transition name="pop-in">
+            <button v-if="finaleCountry" class="btn-finale-start" @click="startFinaleQuiz">
+              <span>{{ t('finaleStart') }}</span>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+          </Transition>
+
+          <p class="finale-notice">{{ t('finaleNotice') }}</p>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- ░░ FINALE WINNER MODAL ░░ -->
+    <Transition name="modal-fade">
+      <div v-if="showFinaleWinner" class="modal-overlay finale-winner-overlay">
+        <div class="finale-winner-card">
+          <div class="finale-winner-trophies">🏆🏆🏆</div>
+          <h2 class="finale-winner-title">{{ t('finaleWinnerTitle') }}</h2>
+          <div class="finale-winner-flag">{{ finaleCountry === 'gb' ? '🇬🇧' : '🇷🇸' }}</div>
+          <p class="finale-winner-country">{{ finaleCountry === 'gb' ? t('finaleGB') : t('finaleSerbia') }}</p>
+          <p class="finale-winner-msg">{{ t('finaleWinnerMsg') }}</p>
+          <div class="finale-winner-confetti">🎉🎊🎉🎊🎉</div>
+          <button class="btn-finale-winner-back" @click="endGame">{{ t('finaleWinnerBtn') }}</button>
         </div>
       </div>
     </Transition>
@@ -556,7 +634,17 @@ const uiStrings = {
     puzzleInstruction: 'Choose the piece that fits the missing spot!',
     puzzleSuccess: 'Perfect! Piece placed! 🎉',
     pieceNW: 'Northwest', pieceNE: 'Northeast', pieceSW: 'Southwest', pieceSE: 'Southeast',
+    pieceTop: 'North', pieceMid: 'Middle', pieceBot: 'South',
     puzzleProgress: 'Continent Assembly',
+    finaleTitle: 'FINALE',
+    finaleSubtitle: 'Choose a country to assemble!',
+    finaleGB: 'Great Britain',
+    finaleSerbia: 'Serbia',
+    finaleStart: 'START',
+    finaleNotice: 'In the finale, choose Great Britain or Serbia. The first player to complete the assembly wins!',
+    finaleWinnerTitle: '🏆 WINNER! 🏆',
+    finaleWinnerMsg: 'Congratulations! You assembled the country first!',
+    finaleWinnerBtn: 'Back to menu',
     continents: {
       Europa: 'Europe',
       Azija: 'Asia',
@@ -602,7 +690,17 @@ const uiStrings = {
     puzzleInstruction: 'Izaberi deo koji odgovara praznom mjestu!',
     puzzleSuccess: 'Tačno! Deo postavljen! 🎉',
     pieceNW: 'Sjeverozapad', pieceNE: 'Sjeveroistok', pieceSW: 'Jugozapad', pieceSE: 'Jugoistok',
+    pieceTop: 'Sever', pieceMid: 'Sredina', pieceBot: 'Jug',
     puzzleProgress: 'Sklapanje kontinenta',
+    finaleTitle: 'FINALE',
+    finaleSubtitle: 'Izaberi zemlju za sklapanje!',
+    finaleGB: 'Velika Britanija',
+    finaleSerbia: 'Srbija',
+    finaleStart: 'START',
+    finaleNotice: 'U finalu možeš birati Veliku Britaniju ili Srbiju. Ko prvi sklopi jednu od ova dva, on je pobedio!',
+    finaleWinnerTitle: '🏆 POBEDNIK! 🏆',
+    finaleWinnerMsg: 'Čestitamo! Sklopi/la si zemlju pre svih!',
+    finaleWinnerBtn: 'Nazad na meni',
     continents: {
       Europa: 'Evropa',
       Azija: 'Azija',
@@ -648,7 +746,17 @@ const uiStrings = {
     puzzleInstruction: 'Выбери кусок, который подходит на пустое место!',
     puzzleSuccess: 'Верно! Кусок установлен! 🎉',
     pieceNW: 'Северо-запад', pieceNE: 'Северо-восток', pieceSW: 'Юго-запад', pieceSE: 'Юго-восток',
+    pieceTop: 'Север', pieceMid: 'Середина', pieceBot: 'Юг',
     puzzleProgress: 'Сборка континента',
+    finaleTitle: 'ФИНАЛ',
+    finaleSubtitle: 'Выбери страну для сборки!',
+    finaleGB: 'Великобритания',
+    finaleSerbia: 'Сербия',
+    finaleStart: 'СТАРТ',
+    finaleNotice: 'В финале выбери Великобританию или Сербию. Кто первым соберёт пазл — победил!',
+    finaleWinnerTitle: '🏆 ПОБЕДИТЕЛЬ! 🏆',
+    finaleWinnerMsg: 'Поздравляем! Ты собрал страну первым!',
+    finaleWinnerBtn: 'Вернуться в меню',
     continents: {
       Europa: 'Европа',
       Azija: 'Азия',
@@ -694,7 +802,17 @@ const uiStrings = {
     puzzleInstruction: 'Boş yere uyan parçayı seç!',
     puzzleSuccess: 'Harika! Parça yerleştirildi! 🎉',
     pieceNW: 'Kuzeybatı', pieceNE: 'Kuzeydoğu', pieceSW: 'Güneybatı', pieceSE: 'Güneydoğu',
+    pieceTop: 'Kuzey', pieceMid: 'Orta', pieceBot: 'Güney',
     puzzleProgress: 'Kıta Birleştirme',
+    finaleTitle: 'FİNAL',
+    finaleSubtitle: 'Bir ülke seç ve birleştir!',
+    finaleGB: 'Büyük Britanya',
+    finaleSerbia: 'Sırbistan',
+    finaleStart: 'BAŞLA',
+    finaleNotice: 'Finalde Büyük Britanya veya Sırbistan\'ı seçebilirsin. İlk birleştiren kazanır!',
+    finaleWinnerTitle: '🏆 KAZANAN! 🏆',
+    finaleWinnerMsg: 'Tebrikler! Ülkeyi ilk sen birleştirdin!',
+    finaleWinnerBtn: 'Menüye dön',
     continents: {
       Europa: 'Avrupa',
       Azija: 'Asya',
@@ -740,7 +858,17 @@ const uiStrings = {
     puzzleInstruction: 'Izvēlies gabalu, kas der tukšajai vietai!',
     puzzleSuccess: 'Pareizi! Gabals novietots! 🎉',
     pieceNW: 'Ziemeļrietumi', pieceNE: 'Ziemeļaustrumi', pieceSW: 'Dienvidrietumi', pieceSE: 'Dienvidaustrumi',
+    pieceTop: 'Ziemeļi', pieceMid: 'Vidus', pieceBot: 'Dienvidi',
     puzzleProgress: 'Kontinenta Saliekšana',
+    finaleTitle: 'FINĀLS',
+    finaleSubtitle: 'Izvēlies valsti saliekšanai!',
+    finaleGB: 'Lielbritānija',
+    finaleSerbia: 'Serbija',
+    finaleStart: 'SĀKT',
+    finaleNotice: 'Finālā izvēlies Lielbritāniju vai Serbiju. Kurš pirmais saliek — uzvar!',
+    finaleWinnerTitle: '🏆 UZVARĒTĀJS! 🏆',
+    finaleWinnerMsg: 'Apsveicam! Tu pirmais saliki valsti!',
+    finaleWinnerBtn: 'Atpakaļ uz izvēlni',
     continents: {
       Europa: 'Eiropa',
       Azija: 'Āzija',
@@ -921,8 +1049,8 @@ function nextQuestion() {
   advanceQuestion()
 }
 
-function returnToMap()   { phase.value = 'selection'; buildCardDeck() }
-function goToSelection() { phase.value = 'selection'; buildCardDeck() }
+function returnToMap()   { isFinale.value = false; finaleCountry.value = ''; showFinaleWinner.value = false; phase.value = 'selection'; buildCardDeck() }
+function goToSelection() { isFinale.value = false; finaleCountry.value = ''; phase.value = 'selection'; buildCardDeck() }
 function restartSame()   { startQuiz() }
 function changeLang(code) { currentLang.value = code }
 
@@ -1225,7 +1353,7 @@ function pickChallenge() {
 }
 
 function openChallenge() { pickChallenge(); showWrongModal.value = false; showChallengeCard.value = true }
-function endGame()       { showWrongModal.value = false; showChallengeCard.value = false; phase.value = 'selection'; buildCardDeck() }
+function endGame()       { showWrongModal.value = false; showChallengeCard.value = false; showFinaleWinner.value = false; isFinale.value = false; finaleCountry.value = ''; phase.value = 'selection'; buildCardDeck() }
 function challengeDone() { showChallengeCard.value = false; advanceQuestion() }
 
 // ─── PUZZLE / SLAGALICA STATE ─────────────────────────────────────────────────
@@ -1239,7 +1367,7 @@ const puzzleCorrect        = ref(null)
 // ─── PUZZLE IMAGES ───────────────────────────────────────────────────────────
 // Slike se nalaze u public/assets/ folder
 const puzzleImages = {
-  'Europa':          ['/assets/eu1.png', '/assets/eu2.png', '/assets/eu3.png', '/assets/eu4.png'],
+  'Europa':          ['/assets/eu1.png', '/assets/eu4.png', '/assets/eu3.png', '/assets/eu2.png'],
   'Australija':      ['/assets/au1.png', '/assets/au2.png', '/assets/au3.png', '/assets/au4.png'],
   'Afrika':          ['/assets/af1.png', '/assets/af2.png', '/assets/af3.png', '/assets/af4.png'],
   'Južna Amerika':   ['/assets/ja1.png', '/assets/ja2.png', '/assets/ja3.png', '/assets/ja4.png'],
@@ -1248,8 +1376,70 @@ const puzzleImages = {
 }
 
 function getPuzzleImage(continent, slotIdx) {
+  if (isFinale.value) {
+    return finalePuzzleImages[finaleCountry.value]?.[slotIdx] ?? ''
+  }
   return puzzleImages[continent]?.[slotIdx] ?? ''
 }
+
+// ─── FINALE PUZZLE IMAGES ─────────────────────────────────────────────────────
+const finalePuzzleImages = {
+  gb:      ['/assets/gb1.png', '/assets/gb2.png', '/assets/gb3.png'],
+  serbia:  ['/assets/sr1.png', '/assets/sr2.png', '/assets/sr3.png'],
+}
+
+// ─── FINALE QUESTIONS ─────────────────────────────────────────────────────────
+const finaleQuestionData = {
+  gb: [
+    { id:'gb-01', translations:{ sr:{ question:'Koji je glavni grad Velike Britanije?', correct:'London', wrong:['Mančester','Edinburg','Birmingem'] }, en:{ question:'What is the capital of Great Britain?', correct:'London', wrong:['Manchester','Edinburgh','Birmingham'] }, ru:{ question:'Какова столица Великобритании?', correct:'Лондон', wrong:['Манчестер','Эдинбург','Бирмингем'] }, tr:{ question:'Büyük Britanya\'nın başkenti nedir?', correct:'Londra', wrong:['Manchester','Edinburgh','Birmingham'] }, lv:{ question:'Kāda ir Lielbritānijas galvaspilsēta?', correct:'Londona', wrong:['Mančestra','Edinburga','Birmingema'] } } },
+    { id:'gb-02', translations:{ sr:{ question:'Koja reka protiče kroz London?', correct:'Temza', wrong:['Severn','Tajn','Trent'] }, en:{ question:'Which river flows through London?', correct:'Thames', wrong:['Severn','Tyne','Trent'] }, ru:{ question:'Какая река протекает через Лондон?', correct:'Темза', wrong:['Северн','Тайн','Трент'] }, tr:{ question:'Londra\'dan hangi nehir geçer?', correct:'Thames', wrong:['Severn','Tyne','Trent'] }, lv:{ question:'Kura upe tek caur Londonu?', correct:'Temza', wrong:['Severna','Tainas','Trenta'] } } },
+    { id:'gb-03', translations:{ sr:{ question:'Koji je najviši vrh u Velikoj Britaniji?', correct:'Ben Nevis', wrong:['Skofell Pajk','Snovdon','Ben Makdui'] }, en:{ question:'What is the highest peak in Great Britain?', correct:'Ben Nevis', wrong:['Scafell Pike','Snowdon','Ben Macdui'] }, ru:{ question:'Какова высшая точка Великобритании?', correct:'Бен-Невис', wrong:['Скофелл Пайк','Сноудон','Бен-Макдуи'] }, tr:{ question:'Büyük Britanya\'nın en yüksek tepesi hangisidir?', correct:'Ben Nevis', wrong:['Scafell Pike','Snowdon','Ben Macdui'] }, lv:{ question:'Kāds ir augstākais kalns Lielbritānijā?', correct:'Ben Neviss', wrong:['Skofela Pike','Snoudons','Ben Makdui'] } } },
+    { id:'gb-04', translations:{ sr:{ question:'Koje more se nalazi istočno od Velike Britanije?', correct:'Severno more', wrong:['Irsko more','Keltsko more','Norveško more'] }, en:{ question:'Which sea lies to the east of Great Britain?', correct:'North Sea', wrong:['Irish Sea','Celtic Sea','Norwegian Sea'] }, ru:{ question:'Какое море находится к востоку от Великобритании?', correct:'Северное море', wrong:['Ирландское море','Кельтское море','Норвежское море'] }, tr:{ question:'Büyük Britanya\'nın doğusunda hangi deniz yer alır?', correct:'Kuzey Denizi', wrong:['İrlanda Denizi','Kelt Denizi','Norveç Denizi'] }, lv:{ question:'Kura jūra atrodas uz austrumiem no Lielbritānijas?', correct:'Ziemeļjūra', wrong:['Īrijas jūra','Ķeltu jūra','Norvēģijas jūra'] } } },
+    { id:'gb-05', translations:{ sr:{ question:'Koji okean zapljuskuje zapadne obale Velike Britanije?', correct:'Atlantski okean', wrong:['Tihi okean','Indijski okean','Arktički okean'] }, en:{ question:'Which ocean washes the western shores of Great Britain?', correct:'Atlantic Ocean', wrong:['Pacific Ocean','Indian Ocean','Arctic Ocean'] }, ru:{ question:'Какой океан омывает западные берега Великобритании?', correct:'Атлантический океан', wrong:['Тихий океан','Индийский океан','Арктический океан'] }, tr:{ question:'Hangi okyanus Büyük Britanya\'nın batı kıyılarını yıkıyor?', correct:'Atlantik Okyanusu', wrong:['Pasifik Okyanusu','Hint Okyanusu','Arktik Okyanusu'] }, lv:{ question:'Kurš okeāns skalo Lielbritānijas rietumu krastus?', correct:'Atlantijas okeāns', wrong:['Klusais okeāns','Indijas okeāns','Arktiskais okeāns'] } } },
+    { id:'gb-06', translations:{ sr:{ question:'Koji je drugi najveći grad u Velikoj Britaniji?', correct:'Birmingem', wrong:['Mančester','Lids','Glazgov'] }, en:{ question:'What is the second largest city in Great Britain?', correct:'Birmingham', wrong:['Manchester','Leeds','Glasgow'] }, ru:{ question:'Какой второй по величине город Великобритании?', correct:'Бирмингем', wrong:['Манчестер','Лидс','Глазго'] }, tr:{ question:'Büyük Britanya\'nın ikinci büyük şehri hangisidir?', correct:'Birmingham', wrong:['Manchester','Leeds','Glasgow'] }, lv:{ question:'Kāda ir Lielbritānijas otrā lielākā pilsēta?', correct:'Birmingema', wrong:['Mančestra','Lidsa','Glāzgova'] } } },
+    { id:'gb-07', translations:{ sr:{ question:'Kako se zove planinski lanac u severnoj Engleskoj?', correct:'Penini', wrong:['Kambrijski planinski','Čevijot','Dartmur'] }, en:{ question:'What is the mountain range in northern England called?', correct:'The Pennines', wrong:['Cambrian Mountains','Cheviot Hills','Dartmoor'] }, ru:{ question:'Как называется горный хребет в северной Англии?', correct:'Пеннины', wrong:['Камбрийские горы','Чевиот','Дартмур'] }, tr:{ question:'Kuzey İngiltere\'deki dağ sırası nasıl adlandırılır?', correct:'Pennines', wrong:['Cambrian Dağları','Cheviot Tepeleri','Dartmoor'] }, lv:{ question:'Kā sauc kalnu grēdu ziemeļu Anglijā?', correct:'Penīni', wrong:['Kambrijas kalni','Čeviotu pakalni','Dartmūra'] } } },
+    { id:'gb-08', translations:{ sr:{ question:'Koji je najveće jezero u Velikoj Britaniji po površini?', correct:'Lok Lomond', wrong:['Lok Nes','Lok Tah','Vejvoterskej'] }, en:{ question:'Which is the largest lake in Great Britain by surface area?', correct:'Loch Lomond', wrong:['Loch Ness','Loch Tay','Lake Windermere'] }, ru:{ question:'Какое озеро является крупнейшим в Великобритании по площади?', correct:'Лох-Ломонд', wrong:['Лох-Несс','Лох-Тэй','Уиндермир'] }, tr:{ question:'Yüzey alanına göre Büyük Britanya\'nın en büyük gölü hangisidir?', correct:'Loch Lomond', wrong:['Loch Ness','Loch Tay','Windermere Gölü'] }, lv:{ question:'Kāds ir lielākais ezers Lielbritānijā pēc platības?', correct:'Loh Lomonds', wrong:['Loh Nesa','Loh Teja','Vindermīra'] } } },
+    { id:'gb-09', translations:{ sr:{ question:'Koji kanal razdvaja Veliku Britaniju od Francuske?', correct:'La Manš', wrong:['Kanal Kale','Moreuz Gibraltar','Skagerrak'] }, en:{ question:'Which channel separates Great Britain from France?', correct:'English Channel', wrong:['Strait of Calais','Strait of Gibraltar','Skagerrak'] }, ru:{ question:'Какой пролив отделяет Великобританию от Франции?', correct:'Ла-Манш', wrong:['Па-де-Кале','Гибралтарский пролив','Скагеррак'] }, tr:{ question:'Hangi kanal Büyük Britanya\'yı Fransa\'dan ayırır?', correct:'İngiliz Kanalı', wrong:['Kale Boğazı','Cebelitarık Boğazı','Skagerrak'] }, lv:{ question:'Kurš kanāls šķir Lielbritāniju no Francijas?', correct:'Lamanšs', wrong:['Kalē šaurums','Gibraltāra šaurums','Skagerraks'] } } },
+    { id:'gb-10', translations:{ sr:{ question:'Koji je glavni grad Škotske?', correct:'Edinburg', wrong:['Glazgov','Aberdin','Dandee'] }, en:{ question:'What is the capital of Scotland?', correct:'Edinburgh', wrong:['Glasgow','Aberdeen','Dundee'] }, ru:{ question:'Какова столица Шотландии?', correct:'Эдинбург', wrong:['Глазго','Абердин','Данди'] }, tr:{ question:'İskoçya\'nın başkenti nedir?', correct:'Edinburgh', wrong:['Glasgow','Aberdeen','Dundee'] }, lv:{ question:'Kāda ir Skotijas galvaspilsēta?', correct:'Edinburga', wrong:['Glāzgova','Aberdīna','Dandī'] } } },
+    { id:'gb-11', translations:{ sr:{ question:'Koji je glavni grad Velsa?', correct:'Kardif', wrong:['Svonsi','Njuport','Reksem'] }, en:{ question:'What is the capital of Wales?', correct:'Cardiff', wrong:['Swansea','Newport','Wrexham'] }, ru:{ question:'Какова столица Уэльса?', correct:'Кардифф', wrong:['Суонси','Ньюпорт','Рексем'] }, tr:{ question:'Galler\'in başkenti nedir?', correct:'Cardiff', wrong:['Swansea','Newport','Wrexham'] }, lv:{ question:'Kāda ir Velsas galvaspilsēta?', correct:'Kārdifa', wrong:['Svonsija','Njūporta','Rekshema'] } } },
+    { id:'gb-12', translations:{ sr:{ question:'Koje ostrvo zapadno od VB je deo Ujedinjenog Kraljevstva?', correct:'Severna Irska', wrong:['Ostrvo Man','Džerzi','Gernzi'] }, en:{ question:'Which island to the west of GB is part of the UK?', correct:'Northern Ireland', wrong:['Isle of Man','Jersey','Guernsey'] }, ru:{ question:'Какой остров к западу от Великобритании является частью Соединённого Королевства?', correct:'Северная Ирландия', wrong:['Остров Мэн','Джерси','Гернси'] }, tr:{ question:'Büyük Britanya\'nın batısındaki hangi ada Birleşik Krallık\'ın parçasıdır?', correct:'Kuzey İrlanda', wrong:['Man Adası','Jersey','Guernsey'] }, lv:{ question:'Kura sala uz rietumiem no Lielbritānijas ir daļa no Apvienotās Karalistes?', correct:'Ziemeļīrija', wrong:['Menas sala','Džērsija','Gērnsija'] } } },
+    { id:'gb-13', translations:{ sr:{ question:'Kako se zove poznata oblast jezera u severozapadnoj Engleskoj?', correct:'Lejk Distrikt', wrong:['Jorkšir Dejls','Dartmur','Egzur'] }, en:{ question:'What is the famous lake district in northwest England called?', correct:'Lake District', wrong:['Yorkshire Dales','Dartmoor','Exmoor'] }, ru:{ question:'Как называется знаменитый Озёрный край в северо-западной Англии?', correct:'Озёрный Край', wrong:['Йоркширские Дейлс','Дартмур','Эксмур'] }, tr:{ question:'Kuzeybatı İngiltere\'deki ünlü göl bölgesi nasıl adlandırılır?', correct:'Lake District', wrong:['Yorkshire Dales','Dartmoor','Exmoor'] }, lv:{ question:'Kā sauc slaveno ezeru rajonu ziemeļrietumu Anglijā?', correct:'Ezeru rajons', wrong:['Jorkšīras ielejās','Dartmūra','Eksmūra'] } } },
+    { id:'gb-14', translations:{ sr:{ question:'Koja reka protiče kroz grad Mančester?', correct:'Irvel', wrong:['Mersi','Ribel','Dizveli'] }, en:{ question:'Which river flows through Manchester?', correct:'River Irwell', wrong:['Mersey','Ribble','Weaver'] }, ru:{ question:'Какая река протекает через Манчестер?', correct:'Ирвел', wrong:['Мерси','Риббл','Уивер'] }, tr:{ question:'Manchester\'dan hangi nehir akar?', correct:'Irwell Nehri', wrong:['Mersey','Ribble','Weaver'] }, lv:{ question:'Kura upe tek caur Mančestru?', correct:'Irvela upe', wrong:['Mersija','Ribla','Vīvera'] } } },
+    { id:'gb-15', translations:{ sr:{ question:'Kako se zove more između Velike Britanije i Irske?', correct:'Irsko more', wrong:['Keltsko more','Severno more','Hebridsko more'] }, en:{ question:'What is the sea between Great Britain and Ireland called?', correct:'Irish Sea', wrong:['Celtic Sea','North Sea','Hebridean Sea'] }, ru:{ question:'Как называется море между Великобританией и Ирландией?', correct:'Ирландское море', wrong:['Кельтское море','Северное море','Гебридское море'] }, tr:{ question:'Büyük Britanya ile İrlanda arasındaki denize ne denir?', correct:'İrlanda Denizi', wrong:['Kelt Denizi','Kuzey Denizi','Hebridal Denizi'] }, lv:{ question:'Kā sauc jūru starp Lielbritāniju un Īriju?', correct:'Īrijas jūra', wrong:['Ķeltu jūra','Ziemeļjūra','Hebrīdu jūra'] } } },
+    { id:'gb-16', translations:{ sr:{ question:'Koji je najveći grad u Škotskoj?', correct:'Glazgov', wrong:['Edinburg','Aberdin','Dandee'] }, en:{ question:'What is the largest city in Scotland?', correct:'Glasgow', wrong:['Edinburgh','Aberdeen','Dundee'] }, ru:{ question:'Какой крупнейший город Шотландии?', correct:'Глазго', wrong:['Эдинбург','Абердин','Данди'] }, tr:{ question:'İskoçya\'nın en büyük şehri hangisidir?', correct:'Glasgow', wrong:['Edinburgh','Aberdeen','Dundee'] }, lv:{ question:'Kāda ir lielākā pilsēta Skotijā?', correct:'Glāzgova', wrong:['Edinburga','Aberdīna','Dandī'] } } },
+    { id:'gb-17', translations:{ sr:{ question:'Kako se zove poznata litica na jugu Engleske?', correct:'Seven Sisters', wrong:['Bijele litice Dovera','Beachy Head','Old Harry'] }, en:{ question:'What is the famous cliff on the south coast of England called?', correct:'Seven Sisters', wrong:['White Cliffs of Dover','Beachy Head','Old Harry Rocks'] }, ru:{ question:'Как называются знаменитые скалы на юге Англии?', correct:'Семь сестёр', wrong:['Белые скалы Дувра','Бичи-Хед','Олд-Гарри'] }, tr:{ question:'Güney İngiltere\'deki ünlü kayalık nasıl adlandırılır?', correct:'Seven Sisters', wrong:['Dover Beyaz Kayalıkları','Beachy Head','Old Harry Rocks'] }, lv:{ question:'Kā sauc slavenās klintis Anglijas dienvidu piekrastē?', correct:'Septiņas māsas', wrong:['Duvras baltās klintis','Bīčī Head','Vecais Harijs'] } } },
+    { id:'gb-18', translations:{ sr:{ question:'Koji je najduži rečni tok u Velikoj Britaniji?', correct:'Severn', wrong:['Temza','Trent','Mersi'] }, en:{ question:'Which is the longest river in Great Britain?', correct:'River Severn', wrong:['Thames','Trent','Mersey'] }, ru:{ question:'Какая река является самой длинной в Великобритании?', correct:'Северн', wrong:['Темза','Трент','Мерси'] }, tr:{ question:'Büyük Britanya\'nın en uzun nehri hangisidir?', correct:'Severn Nehri', wrong:['Thames','Trent','Mersey'] }, lv:{ question:'Kura ir garākā upe Lielbritānijā?', correct:'Severna upe', wrong:['Temza','Trenta','Mersija'] } } },
+    { id:'gb-19', translations:{ sr:{ question:'Kako se zove kraljevska rezidencija u Londonu?', correct:'Bakingemska palata', wrong:['Vindzorski dvorac','Sent Džejms palata','Kju palata'] }, en:{ question:'What is the royal residence in London called?', correct:'Buckingham Palace', wrong:['Windsor Castle','St James\'s Palace','Kew Palace'] }, ru:{ question:'Как называется королевская резиденция в Лондоне?', correct:'Букингемский дворец', wrong:['Виндзорский замок','Сент-Джеймсский дворец','Кью Палас'] }, tr:{ question:'Londra\'daki kraliyet rezidansı nasıl adlandırılır?', correct:'Buckingham Sarayı', wrong:['Windsor Şatosu','St. James Sarayı','Kew Sarayı'] }, lv:{ question:'Kā sauc karalisko rezidenci Londonā?', correct:'Bekingemas pils', wrong:['Vindzoras pils','Senktdžeimsa pils','Kju pils'] } } },
+    { id:'gb-20', translations:{ sr:{ question:'Koja valuta se koristi u Velikoj Britaniji?', correct:'Britanska funta', wrong:['Evro','Dolar','Norveška kruna'] }, en:{ question:'What currency is used in Great Britain?', correct:'British Pound', wrong:['Euro','Dollar','Norwegian Krone'] }, ru:{ question:'Какая валюта используется в Великобритании?', correct:'Британский фунт', wrong:['Евро','Доллар','Норвежская крона'] }, tr:{ question:'Büyük Britanya\'da hangi para birimi kullanılır?', correct:'İngiliz Sterlini', wrong:['Euro','Dolar','Norveç Kronu'] }, lv:{ question:'Kādu valūtu izmanto Lielbritānijā?', correct:'Britu mārciņa', wrong:['Eiro','Dolārs','Norvēģijas krona'] } } },
+  ],
+  serbia: [
+    { id:'sr-01', translations:{ sr:{ question:'Koji je najveći nacionalni park u Srbiji?', correct:'Đerdap', wrong:['Kopaonik','Tara','Fruška gora'] }, en:{ question:'What is the largest national park in Serbia?', correct:'Đerdap (Iron Gate)', wrong:['Kopaonik','Tara','Fruška Gora'] }, ru:{ question:'Какой крупнейший национальный парк в Сербии?', correct:'Джердап', wrong:['Копаоник','Тара','Фрушка Гора'] }, tr:{ question:'Sırbistan\'ın en büyük milli parkı hangisidir?', correct:'Đerdap', wrong:['Kopaonik','Tara','Fruška Gora'] }, lv:{ question:'Kāds ir lielākais nacionālais parks Serbijā?', correct:'Đerdaps', wrong:['Kopaniks','Tara','Frushka Gora'] } } },
+    { id:'sr-02', translations:{ sr:{ question:'Kako se zove najveća peščara u Srbiji?', correct:'Deliblatska peščara', wrong:['Subotička peščara','Alibunarska peščara','Ramska peščara'] }, en:{ question:'What is the largest sand desert in Serbia called?', correct:'Deliblato Sands', wrong:['Subotica Sands','Alibunar Sands','Rama Sands'] }, ru:{ question:'Как называется крупнейшая песчаная пустыня Сербии?', correct:'Делиблатская пещера', wrong:['Суботицкие пески','Алибунарская пустыня','Рамская пустыня'] }, tr:{ question:'Sırbistan\'ın en büyük kum çölüne ne denir?', correct:'Deliblato Kumları', wrong:['Subotica Kumları','Alibunar Kumları','Rama Kumları'] }, lv:{ question:'Kā sauc lielāko smilšu tuksnesi Serbijā?', correct:'Deliblato smiltis', wrong:['Suboticas smiltis','Alibunaras smiltis','Ramas smiltis'] } } },
+    { id:'sr-03', translations:{ sr:{ question:'Kako se zove poznata tvrđava na ušću Save u Dunav?', correct:'Beogradska tvrđava (Kalemegdan)', wrong:['Petrovaradinska tvrđava','Smederevska tvrđava','Golubačka tvrđava'] }, en:{ question:'What is the famous fortress at the confluence of the Sava and Danube called?', correct:'Belgrade Fortress (Kalemegdan)', wrong:['Petrovaradin Fortress','Smederevo Fortress','Golubac Fortress'] }, ru:{ question:'Как называется крепость в месте слияния Савы и Дуная?', correct:'Белградская крепость (Калемегдан)', wrong:['Петроварадинская крепость','Смедеревская крепость','Голубачская крепость'] }, tr:{ question:'Sava ve Tuna\'nın birleştiği yerdeki ünlü kale nasıl adlandırılır?', correct:'Belgrad Kalesi (Kalemegdan)', wrong:['Petrovaradin Kalesi','Smederevo Kalesi','Golubac Kalesi'] }, lv:{ question:'Kā sauc slaveno cietoksni Savas un Donavas satekā?', correct:'Belgradas cietoksnis (Kalemegdans)', wrong:['Petrovaradinas cietoksnis','Smederevas cietoksnis','Golubakas cietoksnis'] } } },
+    { id:'sr-04', translations:{ sr:{ question:'U kom gradu se nalazi Petrovaradinska tvrđava?', correct:'Novi Sad', wrong:['Beograd','Sremska Mitrovica','Zrenjanin'] }, en:{ question:'In which city is the Petrovaradin Fortress located?', correct:'Novi Sad', wrong:['Belgrade','Sremska Mitrovica','Zrenjanin'] }, ru:{ question:'В каком городе находится Петроварадинская крепость?', correct:'Нови-Сад', wrong:['Белград','Сремска-Митровица','Зренянин'] }, tr:{ question:'Petrovaradin Kalesi hangi şehirde yer alır?', correct:'Novi Sad', wrong:['Belgrad','Sremska Mitrovica','Zrenjanin'] }, lv:{ question:'Kurā pilsētā atrodas Petrovaradinas cietoksnis?', correct:'Novi Sada', wrong:['Belgrade','Sremska Mitrovica','Zrenjanin'] } } },
+    { id:'sr-05', translations:{ sr:{ question:'Kako se zove najveća ravnica u severnom delu Srbije?', correct:'Panonska nizija', wrong:['Mačvanska ravnica','Posavina','Podunavlje'] }, en:{ question:'What is the largest plain in northern Serbia called?', correct:'Pannonian Plain', wrong:['Mačva Plain','Posavina','Podunavlje'] }, ru:{ question:'Как называется крупнейшая равнина в северной Сербии?', correct:'Паннонская низменность', wrong:['Мачванская равнина','Посавина','Подунавле'] }, tr:{ question:'Kuzey Sırbistan\'ın en büyük ovasına ne denir?', correct:'Pannonya Ovası', wrong:['Mačva Ovası','Posavina','Podunavlje'] }, lv:{ question:'Kā sauc lielāko līdzenumu Serbijas ziemeļu daļā?', correct:'Pannonijas zemiene', wrong:['Mačvas līdzenums','Posavina','Podunavle'] } } },
+    { id:'sr-06', translations:{ sr:{ question:'Koje je najveće veštačko jezero u Srbiji?', correct:'Đerdapsko jezero', wrong:['Vlasinsko jezero','Perućačko jezero','Gazivode'] }, en:{ question:'What is the largest artificial lake in Serbia?', correct:'Đerdap Lake', wrong:['Vlasina Lake','Perućac Lake','Gazivode'] }, ru:{ question:'Какое крупнейшее искусственное озеро в Сербии?', correct:'Джердапское озеро', wrong:['Власинское озеро','Перучацкое озеро','Газиводе'] }, tr:{ question:'Sırbistan\'ın en büyük yapay gölü hangisidir?', correct:'Đerdap Gölü', wrong:['Vlasina Gölü','Perućac Gölü','Gazivode'] }, lv:{ question:'Kāds ir lielākais mākslīgais ezers Serbijā?', correct:'Đerdapa ezers', wrong:['Vlasinas ezers','Perućacas ezers','Gazivode'] } } },
+    { id:'sr-07', translations:{ sr:{ question:'Kako se zove memorijalni kompleks u Kragujevcu posvećen žrtvama Drugog svetskog rata?', correct:'Šumarice', wrong:['Sajmište','Jasenovac','Staro groblje'] }, en:{ question:'What is the memorial complex in Kragujevac dedicated to WWII victims called?', correct:'Šumarice', wrong:['Sajmište','Jasenovac','Old Cemetery'] }, ru:{ question:'Как называется мемориальный комплекс в Крагуевце, посвящённый жертвам Второй мировой войны?', correct:'Шумарице', wrong:['Саймиште','Ясеновац','Старое кладбище'] }, tr:{ question:'Kragujevac\'taki İkinci Dünya Savaşı kurbanlarına adanmış anıt kompleksi nasıl adlandırılır?', correct:'Šumarice', wrong:['Sajmište','Jasenovac','Eski Mezarlık'] }, lv:{ question:'Kā sauc memoriālo kompleksu Kragujevacā, kas veltīts II pasaules kara upuriem?', correct:'Šumarice', wrong:['Sajmište','Jasenovac','Vecā kapsēta'] } } },
+    { id:'sr-08', translations:{ sr:{ question:'Koja planina je najviša u Srbiji?', correct:'Midžur (Stara planina)', wrong:['Kopaonik','Tara','Zlatibor'] }, en:{ question:'Which is the highest mountain in Serbia?', correct:'Midžur (Stara Planina)', wrong:['Kopaonik','Tara','Zlatibor'] }, ru:{ question:'Какая гора является самой высокой в Сербии?', correct:'Миджур (Стара-Планина)', wrong:['Копаоник','Тара','Златибор'] }, tr:{ question:'Sırbistan\'ın en yüksek dağı hangisidir?', correct:'Midžur (Stara Planina)', wrong:['Kopaonik','Tara','Zlatibor'] }, lv:{ question:'Kāds ir augstākais kalns Serbijā?', correct:'Midžurs (Stara Planina)', wrong:['Kopaniks','Tara','Zlatibors'] } } },
+    { id:'sr-09', translations:{ sr:{ question:'Kako se zove najduža reka koja protiče kroz Srbiju?', correct:'Dunav', wrong:['Sava','Morava','Drina'] }, en:{ question:'What is the longest river flowing through Serbia?', correct:'Danube', wrong:['Sava','Morava','Drina'] }, ru:{ question:'Какая самая длинная река, протекающая через Сербию?', correct:'Дунай', wrong:['Сава','Морава','Дрина'] }, tr:{ question:'Sırbistan\'dan geçen en uzun nehir hangisidir?', correct:'Tuna', wrong:['Sava','Morava','Drina'] }, lv:{ question:'Kāda ir garākā upe, kas tek caur Serbiju?', correct:'Donava', wrong:['Sava','Morava','Drīna'] } } },
+    { id:'sr-10', translations:{ sr:{ question:'Koje je najveće jezero u Srbiji?', correct:'Đerdapsko jezero', wrong:['Vlasinsko jezero','Perućačko jezero','Palićko jezero'] }, en:{ question:'What is the largest lake in Serbia?', correct:'Đerdap Lake', wrong:['Vlasina Lake','Perućac Lake','Palić Lake'] }, ru:{ question:'Какое крупнейшее озеро в Сербии?', correct:'Джердапское озеро', wrong:['Власинское озеро','Перучацкое озеро','Палицкое озеро'] }, tr:{ question:'Sırbistan\'ın en büyük gölü hangisidir?', correct:'Đerdap Gölü', wrong:['Vlasina Gölü','Perućac Gölü','Palić Gölü'] }, lv:{ question:'Kāds ir lielākais ezers Serbijā?', correct:'Đerdapa ezers', wrong:['Vlasinas ezers','Perućacas ezers','Paliča ezers'] } } },
+    { id:'sr-11', translations:{ sr:{ question:'U kom delu Srbije se nalazi Fruška gora?', correct:'U Vojvodini (Srem)', wrong:['U centralnoj Srbiji','U južnoj Srbiji','Na Kosovu'] }, en:{ question:'In which part of Serbia is Fruška Gora located?', correct:'In Vojvodina (Syrmia)', wrong:['In central Serbia','In southern Serbia','In Kosovo'] }, ru:{ question:'В какой части Сербии находится Фрушка Гора?', correct:'В Воеводине (Срем)', wrong:['В центральной Сербии','На юге Сербии','В Косово'] }, tr:{ question:'Fruška Gora Sırbistan\'ın hangi bölümünde yer alır?', correct:'Voyvodina\'da (Srem)', wrong:['Orta Sırbistan\'da','Güney Sırbistan\'da','Kosova\'da'] }, lv:{ question:'Kurā Serbijas daļā atrodas Fruška Gora?', correct:'Vojvodinā (Srema)', wrong:['Centrālajā Serbijā','Dienvidu Serbijā','Kosovā'] } } },
+    { id:'sr-12', translations:{ sr:{ question:'U kom gradu se sastaju Sava i Dunav?', correct:'Beograd', wrong:['Novi Sad','Sremska Mitrovica','Smederevo'] }, en:{ question:'In which city do the Sava and Danube rivers meet?', correct:'Belgrade', wrong:['Novi Sad','Sremska Mitrovica','Smederevo'] }, ru:{ question:'В каком городе сливаются реки Сава и Дунай?', correct:'Белград', wrong:['Нови-Сад','Сремска-Митровица','Смедерево'] }, tr:{ question:'Sava ve Tuna nehirleri hangi şehirde birleşir?', correct:'Belgrad', wrong:['Novi Sad','Sremska Mitrovica','Smederevo'] }, lv:{ question:'Kurā pilsētā satiekas Savas un Donavas upes?', correct:'Belgrada', wrong:['Novi Sada','Sremska Mitrovica','Smederevas'] } } },
+    { id:'sr-13', translations:{ sr:{ question:'Koja je najpoznatija banja u Srbiji?', correct:'Vrnjačka Banja', wrong:['Bukovička Banja','Niška Banja','Sokobanja'] }, en:{ question:'What is the most famous spa town in Serbia?', correct:'Vrnjačka Banja', wrong:['Bukovička Banja','Niška Banja','Sokobanja'] }, ru:{ question:'Какой наиболее известный курорт в Сербии?', correct:'Врньячка-Баня', wrong:['Буковицкая Баня','Нишская Баня','Сокобаня'] }, tr:{ question:'Sırbistan\'ın en ünlü kaplıca şehri hangisidir?', correct:'Vrnjačka Banja', wrong:['Bukovička Banja','Niška Banja','Sokobanja'] }, lv:{ question:'Kāds ir slavenākais kūrorts Serbijā?', correct:'Vrnjačka Banja', wrong:['Bukovička Banja','Niška Banja','Sokobanja'] } } },
+    { id:'sr-14', translations:{ sr:{ question:'Gde se nalazi najveći rudnik bakra u Srbiji?', correct:'Bor', wrong:['Majdanpek','Žagubica','Zaječar'] }, en:{ question:'Where is the largest copper mine in Serbia located?', correct:'Bor', wrong:['Majdanpek','Žagubica','Zaječar'] }, ru:{ question:'Где находится крупнейший медный рудник Сербии?', correct:'Бор', wrong:['Майданпек','Жагубица','Зайечар'] }, tr:{ question:'Sırbistan\'ın en büyük bakır madeni nerede yer alır?', correct:'Bor', wrong:['Majdanpek','Žagubica','Zaječar'] }, lv:{ question:'Kur atrodas lielākā vara raktuves Serbijā?', correct:'Bora', wrong:['Majdanpeks','Žagubica','Zaječāra'] } } },
+    { id:'sr-15', translations:{ sr:{ question:'Koja od ovih planina pripada Dinarskim planinama u Srbiji?', correct:'Zlatibor', wrong:['Stara planina','Rtanj','Suva planina'] }, en:{ question:'Which of these mountains belongs to the Dinaric Alps in Serbia?', correct:'Zlatibor', wrong:['Stara Planina','Rtanj','Suva Planina'] }, ru:{ question:'Какая из этих гор относится к Динарским Альпам в Сербии?', correct:'Златибор', wrong:['Стара-Планина','Ртань','Сува-Планина'] }, tr:{ question:'Bu dağlardan hangisi Sırbistan\'daki Dinar Alpleri\'ne aittir?', correct:'Zlatibor', wrong:['Stara Planina','Rtanj','Suva Planina'] }, lv:{ question:'Kurš no šiem kalniem pieder Dināriskajiem Alpiem Serbijā?', correct:'Zlatibors', wrong:['Stara Planina','Rtanj','Suva Planina'] } } },
+    { id:'sr-16', translations:{ sr:{ question:'Koja planina u Srbiji pripada Karpatsko-balkanskom sistemu?', correct:'Stara planina', wrong:['Zlatibor','Tara','Kopaonik'] }, en:{ question:'Which Serbian mountain belongs to the Carpathian-Balkan system?', correct:'Stara Planina', wrong:['Zlatibor','Tara','Kopaonik'] }, ru:{ question:'Какая гора в Сербии относится к Карпатско-Балканской системе?', correct:'Стара-Планина', wrong:['Златибор','Тара','Копаоник'] }, tr:{ question:'Sırbistan\'ın hangi dağı Karpatlar-Balkan sistemine aittir?', correct:'Stara Planina', wrong:['Zlatibor','Tara','Kopaonik'] }, lv:{ question:'Kurš Serbijas kalns pieder Karpatu-Balkānu sistēmai?', correct:'Stara Planina', wrong:['Zlatibors','Tara','Kopaniks'] } } },
+    { id:'sr-17', translations:{ sr:{ question:'Koje su autonomne pokrajine Srbije?', correct:'Vojvodina i Kosovo i Metohija', wrong:['Vojvodina i Republika Srpska','Srem i Kosovo','Bačka i Metohija'] }, en:{ question:'What are the autonomous provinces of Serbia?', correct:'Vojvodina and Kosovo and Metohija', wrong:['Vojvodina and Republika Srpska','Syrmia and Kosovo','Bačka and Metohija'] }, ru:{ question:'Какие автономные края есть в Сербии?', correct:'Воеводина и Косово и Метохия', wrong:['Воеводина и Республика Сербская','Срем и Косово','Бачка и Метохия'] }, tr:{ question:'Sırbistan\'ın özerk bölgeleri hangileridir?', correct:'Voyvodina ve Kosova ve Metohija', wrong:['Voyvodina ve Republika Srpska','Srem ve Kosova','Bačka ve Metohija'] }, lv:{ question:'Kādas ir Serbijas autonomās provinces?', correct:'Vojvodina un Kosova un Metohija', wrong:['Vojvodina un Republika Srpska','Srems un Kosova','Bačka un Metohija'] } } },
+    { id:'sr-18', translations:{ sr:{ question:'Kako se zove najduži kanalski sistem u Srbiji?', correct:'DTD kanal (Dunav-Tisa-Dunav)', wrong:['Sajanski kanal','Plovni Begej','Kanal Bečej-Bogojevo'] }, en:{ question:'What is the longest canal system in Serbia called?', correct:'DTD Canal (Danube-Tisa-Danube)', wrong:['Saján Canal','Plovni Begej','Bečej-Bogojevo Canal'] }, ru:{ question:'Как называется самая длинная канальная система Сербии?', correct:'Канал ДТД (Дунай-Тиса-Дунай)', wrong:['Саянский канал','Плавный Бегей','Канал Бечей-Богоево'] }, tr:{ question:'Sırbistan\'ın en uzun kanal sistemi nasıl adlandırılır?', correct:'DTD Kanalı (Tuna-Tisa-Tuna)', wrong:['Saján Kanalı','Plovni Begej','Bečej-Bogojevo Kanalı'] }, lv:{ question:'Kā sauc garāko kanālu sistēmu Serbijā?', correct:'DTD kanāls (Donava-Tisa-Donava)', wrong:['Sajana kanāls','Plovni Begeja','Bečeja-Bogojevas kanāls'] } } },
+    { id:'sr-19', translations:{ sr:{ question:'Koliko okruga ima Srbija?', correct:'29', wrong:['25','31','27'] }, en:{ question:'How many districts does Serbia have?', correct:'29', wrong:['25','31','27'] }, ru:{ question:'Сколько округов в Сербии?', correct:'29', wrong:['25','31','27'] }, tr:{ question:'Sırbistan kaç ilçeye sahiptir?', correct:'29', wrong:['25','31','27'] }, lv:{ question:'Cik apgabalu ir Serbijā?', correct:'29', wrong:['25','31','27'] } } },
+    { id:'sr-20', translations:{ sr:{ question:'Koja se poznata freska nalazi u Manastiru Mileševa kod Prijepolja?', correct:'Beli anđeo', wrong:['Bogorodica Perivleptos','Lazareva večera','Sretenje Gospodnje'] }, en:{ question:'Which famous fresco is found in Mileševa Monastery near Prijepolje?', correct:'White Angel', wrong:['Virgin Perivleptos','Last Supper of Lazar','Presentation of the Lord'] }, ru:{ question:'Какая знаменитая фреска находится в монастыре Милешева близ Прьеполя?', correct:'Белый ангел', wrong:['Богородица Перивлептос','Лазарева вечеря','Сретение Господне'] }, tr:{ question:'Prijepolje yakınlarındaki Mileševa Manastırı\'nda hangi ünlü fresk bulunmaktadır?', correct:'Beyaz Melek', wrong:['Bakire Perivleptos','Lazar\'ın Son Akşam Yemeği','Rabbın Sunumu'] }, lv:{ question:'Kāda slavena freska atrodas Mileševas klosterī pie Prijepoļes?', correct:'Baltais eņģelis', wrong:['Dievmāte Perivleptos','Lazara pēdējā vakariņa','Kunga atnešana'] } } },
+  ],
+}
+
+// ─── FINALE STATE ─────────────────────────────────────────────────────────────
+const finaleCountry   = ref('')   // 'gb' | 'serbia'
+const isFinale        = ref(false)
+const showFinaleWinner = ref(false)
 
 // ─── LEGACY (kept for continent card colours) ─────────────────────────────────
 const continentPaths = {
@@ -1322,9 +1512,17 @@ function quadrantViewBox(slotIdx) {
   return ['0 0 100 75', '100 0 100 75', '0 75 100 75', '100 75 100 75'][slotIdx]
 }
 
-// Piece label: NW / NE / SW / SE in the active language
-const pieceLabelKeys = ['pieceNW', 'pieceNE', 'pieceSW', 'pieceSE']
-function getPieceLabel(idx) { return t(pieceLabelKeys[idx]) }
+// Piece label: Top / Middle / Bottom (for finale 3-piece) or NW/NE/SW/SE (4-piece)
+const pieceLabelKeys4 = ['pieceNW', 'pieceNE', 'pieceSW', 'pieceSE']
+const pieceLabelKeys3 = ['pieceTop', 'pieceMid', 'pieceBot']
+function getPieceLabel(idx) {
+  if (isFinale.value) return t(pieceLabelKeys3[idx] ?? pieceLabelKeys3[0])
+  return t(pieceLabelKeys4[idx] ?? pieceLabelKeys4[0])
+}
+
+// Dynamic slot helpers based on whether we are in finale (3 pieces) or regular (4 pieces)
+const puzzleTotalSlots = computed(() => isFinale.value ? 3 : 4)
+const puzzleSlotIndices = computed(() => isFinale.value ? [0, 1, 2] : [0, 1, 2, 3])
 
 // Puzzle functions
 function openPuzzle() {
@@ -1335,9 +1533,10 @@ function openPuzzle() {
   const empty = puzzlePlacedSlots.value
     .map((v, i) => (v ? null : i)).filter(i => i !== null)
 
+  const total = puzzleTotalSlots.value
   if (empty.length === 0) {
-    // All 4 pieces placed — reset for next round of questions
-    puzzlePlacedSlots.value = [false, false, false, false]
+    // Should not normally happen (handled in selectPuzzlePiece), but reset as safety
+    puzzlePlacedSlots.value = new Array(total).fill(false)
     advanceQuestion()
     return
   }
@@ -1347,13 +1546,35 @@ function openPuzzle() {
   puzzleCorrect.value       = null
 
   // Shuffle piece buttons
-  const arr = [0, 1, 2, 3]
-  for (let i = 3; i > 0; i--) {
+  const arr = Array.from({ length: total }, (_, i) => i)
+  for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]]
   }
   puzzleShuffledPieces.value = arr
   showPuzzleModal.value = true
+}
+
+function startFinaleQuiz() {
+  const pool   = finaleQuestionData[finaleCountry.value]
+  const picked = shuffle(pool).slice(0, 20)
+  roundQuestions.value        = picked
+  currentIndex.value          = 0
+  score.value                 = 0
+  pipResults.value            = new Array(picked.length).fill(null)
+  showWrongModal.value        = false
+  showChallengeCard.value     = false
+  usedChallengeIndices.value  = []
+  currentChallengeIndex.value = -1
+  puzzlePlacedSlots.value     = [false, false, false]
+  puzzleCorrect.value         = null
+  showPuzzleModal.value       = false
+  showFinaleWinner.value      = false
+  isFinale.value              = true
+  // Set activeContinent to show a styled band in quiz header
+  activeContinent.value = finaleCountry.value === 'gb' ? 'Europa' : 'Europa'
+  loadQuestion()
+  phase.value = 'quiz'
 }
 
 function selectPuzzlePiece(pieceIdx) {
@@ -1363,12 +1584,24 @@ function selectPuzzlePiece(pieceIdx) {
 
   if (puzzleCorrect.value) {
     // Mark slot as placed
-    puzzlePlacedSlots.value = puzzlePlacedSlots.value.map((v, i) =>
+    const newSlots = puzzlePlacedSlots.value.map((v, i) =>
       i === puzzleTargetSlot.value ? true : v
     )
+    puzzlePlacedSlots.value = newSlots
+    const allPlaced = newSlots.every(v => v)
     setTimeout(() => {
       showPuzzleModal.value = false
-      advanceQuestion()
+      if (allPlaced) {
+        if (isFinale.value) {
+          // Finale complete — show winner screen!
+          showFinaleWinner.value = true
+        } else {
+          // All 4 continental pieces placed — go to FINALE selection
+          phase.value = 'finale'
+        }
+      } else {
+        advanceQuestion()
+      }
     }, 1400)
   } else {
     // Wrong piece → challenge
@@ -1501,9 +1734,19 @@ onMounted(() => { buildCardDeck() })
 }
 .puzzle-grid {
   display: grid;
+}
+/* 4-piece: 2×2 landscape */
+.puzzle-grid-4 {
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   aspect-ratio: 4 / 3;
+}
+/* 3-piece: 1×3 portrait (A4 format) */
+.puzzle-grid-3 {
+  grid-template-columns: 1fr;
+  grid-template-rows: 1fr 1fr 1fr;
+  aspect-ratio: 1 / 1.5;
+  max-height: 55vh;
 }
 .puzzle-cell {
   position: relative;
@@ -1576,6 +1819,21 @@ onMounted(() => { buildCardDeck() })
   border-top: 1px dashed var(--border);
   background: none;
 }
+/* 3-piece mode: two horizontal dividers at 33% and 66% */
+.puzzle-divider-h1 {
+  left: 0; right: 0; top: 33.33%;
+  height: 1px;
+  transform: translateY(-50%);
+  border-top: 1px dashed var(--border);
+  background: none;
+}
+.puzzle-divider-h2 {
+  left: 0; right: 0; top: 66.66%;
+  height: 1px;
+  transform: translateY(-50%);
+  border-top: 1px dashed var(--border);
+  background: none;
+}
 .puzzle-divider-v {
   top: 0; bottom: 0; left: 50%;
   width: 1px;
@@ -1595,8 +1853,13 @@ onMounted(() => { buildCardDeck() })
 /* Piece options */
 .puzzle-pieces {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
+}
+.puzzle-pieces-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.puzzle-pieces-3 {
+  grid-template-columns: repeat(3, 1fr);
 }
 .puzzle-piece-btn {
   display: flex;
@@ -1677,4 +1940,219 @@ onMounted(() => { buildCardDeck() })
   .piece-label   { font-size: .55rem; }
   .puzzle-card   { padding: 18px 14px 16px; gap: 12px; }
 }
+
+/* ══════════════════════════════════════════════
+   FINALE STYLES
+   ══════════════════════════════════════════════ */
+
+.finale-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.finale-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px 40px;
+  gap: 18px;
+  text-align: center;
+}
+
+.finale-trophy-anim {
+  font-size: 3.5rem;
+  animation: trophy-bounce 1.2s ease-in-out infinite alternate;
+}
+@keyframes trophy-bounce {
+  from { transform: scale(1) rotate(-5deg); }
+  to   { transform: scale(1.15) rotate(5deg); }
+}
+
+.finale-title-text {
+  font-size: 2.8rem;
+  font-weight: 900;
+  letter-spacing: .15em;
+  background: linear-gradient(135deg, var(--gold), #ff9f43, var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+  text-shadow: none;
+}
+
+.finale-subtitle-text {
+  font-size: 1rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.finale-cards-row {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+
+.finale-country-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  border: 2.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  padding: 24px 28px 20px;
+  cursor: pointer;
+  transition: all .25s;
+  color: var(--text);
+  position: relative;
+  min-width: 130px;
+}
+.finale-country-card:hover {
+  border-color: var(--gold);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 32px rgba(0,0,0,.35);
+}
+.finale-card-selected {
+  border-color: var(--gold) !important;
+  background: rgba(255,196,0,.08) !important;
+  box-shadow: 0 0 0 4px rgba(255,196,0,.18), 0 12px 32px rgba(0,0,0,.35) !important;
+}
+.finale-card-flag {
+  font-size: 3.2rem;
+  line-height: 1;
+}
+.finale-card-name {
+  font-size: .95rem;
+  font-weight: 700;
+  letter-spacing: .04em;
+}
+.finale-card-check {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #000;
+  font-size: .8rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-finale-start {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, var(--gold), #ff9f43);
+  color: #000;
+  border: none;
+  border-radius: 14px;
+  padding: 14px 36px;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 6px 24px rgba(255,196,0,.35);
+}
+.btn-finale-start svg { width: 20px; height: 20px; }
+.btn-finale-start:hover { transform: scale(1.04); box-shadow: 0 10px 32px rgba(255,196,0,.5); }
+
+.finale-notice {
+  font-size: .82rem;
+  color: var(--muted);
+  max-width: 360px;
+  line-height: 1.55;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  margin: 0;
+}
+
+/* Winner modal */
+.finale-winner-overlay {
+  background: rgba(0,0,0,.97) !important;
+  z-index: 400 !important;
+}
+
+.finale-winner-card {
+  background: linear-gradient(160deg, #1a1a2e, #16213e, #0f3460);
+  border: 2px solid var(--gold);
+  border-radius: 24px;
+  padding: 36px 32px 28px;
+  width: min(440px, 94vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(255,196,0,.3), 0 30px 80px rgba(0,0,0,.9);
+  animation: winner-pop .5s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes winner-pop {
+  from { transform: scale(.6); opacity: 0; }
+  to   { transform: scale(1);  opacity: 1; }
+}
+
+.finale-winner-trophies {
+  font-size: 2.2rem;
+  letter-spacing: .3em;
+  animation: trophy-bounce 1s infinite alternate;
+}
+.finale-winner-title {
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: .1em;
+  background: linear-gradient(135deg, var(--gold), #fff, var(--gold));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin: 0;
+}
+.finale-winner-flag {
+  font-size: 4rem;
+  line-height: 1;
+}
+.finale-winner-country {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--gold);
+  margin: 0;
+}
+.finale-winner-msg {
+  font-size: .95rem;
+  color: #ccc;
+  margin: 0;
+}
+.finale-winner-confetti {
+  font-size: 1.8rem;
+  letter-spacing: .25em;
+  animation: confetti-spin 2s infinite linear;
+}
+@keyframes confetti-spin {
+  0%   { letter-spacing: .25em; }
+  50%  { letter-spacing: .5em;  }
+  100% { letter-spacing: .25em; }
+}
+.btn-finale-winner-back {
+  background: var(--gold);
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 32px;
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .2s;
+  margin-top: 4px;
+}
+.btn-finale-winner-back:hover { transform: scale(1.04); }
 </style>
